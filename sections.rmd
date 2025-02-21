@@ -6,7 +6,6 @@ library(spatstat)
 ```
 
 Downloading the spatial centered data of specific cell type
-
 ```{r}
 coordinates <- read.csv("cell_type_coordinates.csv",
                         row.names = 1) # data for cancer cells
@@ -21,37 +20,102 @@ summary(coordinates)
 ```
 
 Convertion the coordinates from the data to matrix
-
 ```{r}
-coordinates_matrix <- as.matrix(coordinates[1:3])
+cell_mat <- as.matrix(coordinates[1:3])
 ```
-
 
 ### Let the spatial statistics begin!
-Define the ranges for each coordinate (you could also use range(coordinates_matrix[,i]))
+Define the ranges for each coordinate (you could also use range(cell_mat[,i]))
 ```{r}
-x_range <- c(min(coordinates_matrix[, 1]), max(coordinates_matrix[, 1]))
-y_range <- c(min(coordinates_matrix[, 2]), max(coordinates_matrix[, 2]))
-z_range <- c(min(coordinates_matrix[, 3]), max(coordinates_matrix[, 3]))
+pp_box <- function(mat) {
+  x_range <- c(min(mat[, 1]), max(mat[, 1]))
+  y_range <- c(min(mat[, 2]), max(mat[, 2]))
+  z_range <- c(min(mat[, 3]), max(mat[, 3]))
 
-# Create the 3D box (an object of class "box3")
-my_box <- box3(xrange = x_range, yrange = y_range, zrange = z_range)
+  # Create the 3D box (an object of class "box3")
+  box3(xrange = x_range, yrange = y_range, zrange = z_range)
+}
 ```
+
 Making a point pattern object
 ```{r}
-mypattern <- pp3(coordinates_matrix[, 1], coordinates_matrix[, 2],
-                 coordinates_matrix[, 3], my_box)
+mypattern <- pp3(cell_mat[, 1], cell_mat[, 2],
+                 cell_mat[, 3], pp_box(cell_mat))
 ```
-
 
 ```{r}
 plot(mypattern)
 ```
 
+Ripley-K function
 ```{r}
 # Compute the 3D Ripley's K function for your pp3 object
-K3 <- K3est(mypattern)
+k3 <- K3est(mypattern)
 
 # Plot the estimated K function
-plot(K3)
+plot(k3)
+```
+
+Pair-correlation function
+```{r}
+# Compute the 3D pair correlation function for your pp3 object
+pcf3 <- pcf3est(mypattern)
+
+# Plot the estimated pair correlation function
+plot(pcf3)
+```
+
+
+## Compute dissections of the 3D point pattern
+### Declare the rotation matrices
+```{r}
+rotation <- function(a, b, g) {
+  matrix(c(
+           cos(a) * cos(b),
+           cos(a) * sin(b) * sin(g) - sin(a) * cos(g),
+           cos(a) * sin(b) * cos(g) + sin(a) * sin(g),
+           sin(a) * cos(b),
+           sin(a) * sin(b) * sin(g) + cos(a) * cos(g),
+           sin(a) * sin(b) * cos(g) - cos(a) * sin(g),
+           -sin(b),
+           cos(b) * sin(g),
+           cos(b) * cos(g))
+  , nrow = 3, byrow = TRUE)
+}
+```
+
+### Declare the slice function
+```{r}
+slice <- function(a, b, c, slice_size, mut_frame) {
+  "Compute the slice of the 3D point pattern."
+  value <- a * mut_frame[, 1] + b * mut_frame[, 2] + c * mut_frame[, 3]
+  # Return a logical vector: TRUE if value is within the slice, FALSE otherwise.
+  value >= -slice_size / 2 & value <= slice_size / 2
+}
+```
+
+```{r}
+coordinates %>%
+  filter(slice(0, 0, 1, 2, as.matrix(coordinates[, 1:3])))
+```
+
+### Define the function to compute the dissections
+```{r}
+pc_for_slice <- function(g, b, a, cell_mat) {
+  "Compute the dissections of the 3D point pattern."
+  mut_mat <- cell_mat %*% rotation(g, b, a)
+  # Convert mutation_matrix to dataframe object to apply slice function
+  mut_frame <- as.data.frame(mut_mat)
+  # Create a slice of the 3D point pattern
+  slices <- mut_frame |>
+    (\(df) filter(df, slice(0, 0, 1, 2, as.matrix(select(df, X, Y, Z)))))()
+  # Create a 3D point pattern object
+  pp <- pp3(slices, y, z, box)
+  # Compute the 3D pair correlation function
+  pcf3est(pp)
+}
+```
+
+```{r}
+pp_box(cell_mat)
 ```
