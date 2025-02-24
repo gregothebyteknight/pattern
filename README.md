@@ -1,14 +1,16 @@
 # Objective
-The aim of this pipeline is to ...
+Question of validity of using sections data as a representation real spatial tissue. This validity is discussed and it is believed that 2D projections of the tissues do not provide with the accurate spatial distribution patterns
+
+The **aim** of this pipeline is to compare spatial metrics both on true spatial data and on 2D sections, also to elaborate the method how to overcome the bias derived from two-dimensional sampling
 
 # Theoretical Part
 ## Pair-Correlation Function
 ### Quick Introductions
 Pair-correlation function $g(r)$ measures the probability of finding a pair of objects separated by a distance r relative to what would be expected for a completely random (Poisson) distribution
 #### Derivation
-Given that space is isotropic let suggest that probability of observing a point around location x is $$p(x)=\lambda(x)dx$$where $\lambda(x)$ is intensity, or density of the point process (like Poisson process) and $dV$ - small region of volume
+Given that space is isotropic let suggest that probability of observing a point around location x is $$p(x)=\lambda(x)dx$$ where $\lambda(x)$ is intensity, or density of the point process (like Poisson process) and $dV$ - small region of volume
 
-Let $p(x,y)$ be a probability of observing 1 point in x and 1 point in y, then $$p(x,y)=\lambda(x)dx\lambda(y)dy\bullet g(x,y)$$where $g(x,y)=\frac{p(x,y)}{\lambda^2dxdy}$ - **pair-correlation function** (in simple case)
+Let $p(x,y)$ be a probability of observing 1 point in x and 1 point in y, then $$p(x,y)=\lambda(x)dx\lambda(y)dy\bullet g(x,y)$$ where $g(x,y)=\frac{p(x,y)}{\lambda^2dxdy}$ - **pair-correlation function** (in simple case)
 
 #### Intuition
 Layers of spheres get more diffuse, so for large distances, the probability of finding two spheres with a given separation is essentially constant > a more dense system has more spheres, this it's more likely to find two of them with a given distance
@@ -28,7 +30,7 @@ For 2D volume correction will be just $2\pi r dr$
 ### `clusters.ipynb`
 
 
-### `sections.rmd` 
+### `sections.r` 
 **Input**: cell_specific matrix with coordinates in X,Y,Z
 - dataset is previously centered by columns
 

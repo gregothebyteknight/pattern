@@ -42,6 +42,7 @@ for (i in seq_along(pcf_list)) {
 }
 
 # Saving the plot and session info
+
 dir.create("../logs", showWarnings = FALSE)
 writeLines(c(paste("Executed Script: main.r"),
              capture.output(sessionInfo())),

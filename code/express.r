@@ -18,7 +18,6 @@ chan_true <- chan_full[chan_full %in% colnames(comp_mat)] # in comp matrix
 print(sprintf("Dim of Compensation Matrix before filter %s", dim(comp_mat)))
 chan_to_add <- chan_full[!chan_full %in% colnames(comp_mat)] # !in comp matrix
 comp_mat <- comp_mat[chan_true, chan_true] # select part of mat with chan_true
-print(sprintf("Dim of Compensation Matrix after filter: %s", dim(comp_mat)))
 
 # EXPAND COMPENSATION MATRIX WITH ZEROS
 comp_mat <- cbind(comp_mat, matrix(0, ncol = length(chan_to_add),
