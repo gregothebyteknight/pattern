@@ -47,8 +47,6 @@ def channel_order(fold_list, chan_list = chan_list):
     for k in range(len(fold_list)):
         chan_list.append(fold_list[k][-5:])
 
-    pd.DataFrame(chan_list).to_csv("../data/order_channels.csv", header = ["channel"])
-
 # CELL INTENSITIES, COORDINATES AND CHANNEL ORDER
 image = reshape_image(fold_list)
 print("Shape of the image:", image.shape)

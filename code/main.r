@@ -1,5 +1,6 @@
 
 source("./slices.r")
+setwd("./")
 library(spatstat)
 
 # Downloading the spatial centered data of specific cell type

@@ -1,36 +1,44 @@
-Mean_expression = read.delim("Downloads/LVIBloodBreastCancerModel/New_cell_intensities.csv",sep=",")
-Panel_file = read.delim("Downloads/LVIBloodBreastCancerModel/LVI_blood_panel.csv",sep=",")
-rownames(Panel_file) = Panel_file$Metal.Tag
 
-Order_metals = read.delim("Downloads/LVIBloodBreastCancerModel/Order_ion_channels.csv",sep=",")
-Order_metals = Order_metals$X0
-Order_proteins = Panel_file[Order_metals,"clean_target"]
+# LOADING LIBRARIES
+library(pheatmap)
 
-Mean_expression = Mean_expression[,-1]
-colnames(Mean_expression) = Order_proteins
+# Downloading Data (expression matrix, table metal - marker)
+expr <- read.delim("../data/cell_intensities.csv", sep = ",", row.names = 1)
+panel <- read.delim("../data/LVI_blood_panel.csv", sep = ",", row.names = 1)
 
-pheatmap::pheatmap(cor(Mean_expression),clustering_method = 'ward')
+chan_full <- colnames(expr)
+colnames(expr) <- panel[chan_full$channel, "clean_target"]
+# Plot Heatmap for uncompensated expression matrix
+pheatmap::pheatmap(cor(expr), clustering_method = "ward")
 
-Compensation_matrix = read.delim("Downloads/LVIBloodBreastCancerModel/compensationMatrix.csv",sep=",",row.names = 1)
-Order_metals_2 = Order_metals[Order_metals%in%colnames(Compensation_matrix)]
-Metals_to_add = Order_metals[!Order_metals%in%colnames(Compensation_matrix)]
-Compensation_matrix = Compensation_matrix[Order_metals_2,Order_metals_2]
+# FILTERING COMPENSATION MATRIX
+comp_mat <- read.delim("../data/compensationMatrix.csv", sep = ",",
+                       row.names = 1)
+chan_true <- chan_full[chan_full %in% colnames(comp_mat)] # in comp matrix
+print(sprintf("Dim of Compensation Matrix before filter %s", dim(comp_mat)))
+chan_to_add <- chan_full[!chan_full %in% colnames(comp_mat)] # !in comp matrix
+comp_mat <- comp_mat[chan_true, chan_true] # select part of mat with chan_true
+print(sprintf("Dim of Compensation Matrix after filter: %s", dim(comp_mat)))
 
-Compensation_matrix = cbind(Compensation_matrix,matrix(0,ncol = length(Metals_to_add),nrow =nrow(Compensation_matrix) ))
-Compensation_matrix = rbind(as.matrix(Compensation_matrix),matrix(0,nrow = length(Metals_to_add),ncol =ncol(Compensation_matrix) ))
-rownames(Compensation_matrix) = c(Order_metals_2,Metals_to_add)
-colnames(Compensation_matrix) = c(Order_metals_2,Metals_to_add)
-Compensation_matrix = Compensation_matrix[Order_metals,Order_metals]
-diag(Compensation_matrix) = 1
-Compensation_matrix_inverse = solve(Compensation_matrix)
-Mean_expression_corrected = as.matrix(Mean_expression)%*%Compensation_matrix_inverse
+# EXPAND COMPENSATION MATRIX WITH ZEROS
+comp_mat <- cbind(comp_mat, matrix(0, ncol = length(chan_to_add),
+                                   nrow = nrow(comp_mat)))
+comp_mat <- rbind(as.matrix(comp_mat), matrix(0, nrow = length(chan_to_add),
+                                              ncol = ncol(comp_mat)))
+rownames(comp_mat) <- c(chan_true, chan_to_add)
+colnames(comp_mat) <- c(chan_true, chan_to_add)
+comp_mat <- comp_mat[chan_full, chan_full] # full-scale comp matrix
+diag(comp_mat) <- 1
 
-colnames(Mean_expression_corrected) = Panel_file[Order_metals,"clean_target"]
-pheatmap::pheatmap(cor(Mean_expression_corrected))
+# APPLY COMPENSATION
+comp_mat_inv <- solve(comp_mat) # find inverse of comp matrix
+expr_corr <- as.matrix(expr) %*% comp_mat_inv
 
-Compensation_matrix_2 = Compensation_matrix
-diag(Compensation_matrix_2) = 0
-image(Compensation_matrix_2)
+colnames(expr_corr) <- panel[chan_full, "clean_target"]
+pheatmap::pheatmap(cor(expr_corr))
 
-write.table(Mean_expression_corrected,"Downloads/LVIBloodBreastCancerModel/Expression_matrix_annotated_corrected.csv",sep=",",row.names = FALSE)
-write.table(Mean_expression,"Downloads/LVIBloodBreastCancerModel/Expression_matrix_annotated.csv",sep=",",row.names = FALSE)
+# SAVING EXPRESSION FILES
+write.table(expr_corr, "../data/expression_annotated_corrected.csv",
+            sep = ",", row.names = FALSE)
+write.table(expr, "../data/expression_annotated.csv",
+            sep = ",", row.names = FALSE)
