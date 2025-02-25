@@ -1,5 +1,5 @@
 # Objective
-Question of validity of using sections data as a representation real spatial tissue. This validity is discussed and it is believed that 2D projections of the tissues do not provide with the accurate spatial distribution patterns
+Question of validity of using sections data as a representation of real tissue statistical properties. This validity is discussed and it is believed that 2D projections of the tissues do not provide with the accurate spatial distribution patterns
 
 The **aim** of this pipeline is to compare spatial metrics both on true spatial data and on 2D sections, also to elaborate the method how to overcome the bias derived from two-dimensional sampling
 
@@ -27,15 +27,11 @@ The PC function accounts for these factors by normalizing by the density; this a
 
 For 2D volume correction will be just $2\pi r dr$
 
-### `clusters.ipynb`
-
-
-### `sections.r` 
-**Input**: cell_specific matrix with coordinates in X,Y,Z
-- dataset is previously centered by columns
-
-**Output**: set of sections produced by applying consecutive section on the initial dataset in variable direction. Difference of orientation is achieved by performing matrix multiplication of initial dataset with the rotation matrices (roll, pinch and yaw)
-
-WORKFLOW
-1. Converting Dataframe to matrix with rows as cells and columns as coordinates (n_cells * 3 coordinates)
-2. 
+## Calculations
+**Pipeline**: `reshape` > `express` > `cluster` > `cells` > `slices` > `main` (dependent of `slices`)
+- **`reshape.py`** - takes stacks of images corresponding to the certain cell markers and cell masks ~ clusterization. This script creates cell datasets with coordinates `cell_coordinates.csv` and with intensities of certain cell markers - `cell_intensities.csv`
+- **`express.r`** - creates expression matrices, both raw `expression_annotated.csv` and corrected `expression_annotated_corrected.csv` with compensation matrix `compensationMatrix.csv`
+- **`cluster.py`** - performs clusterization and manual annotation of expression matrix `expression_annotated_corrected.csv`. Makes various plots for analysis
+- **`cells.py`** - selects cell cluster obtain in the previous script > `cell_coordinates_clusters.csv`
+- **`slices.r`** - contains function to perform random sections based on the 3d dataset `cell_coordinates`. Compute **Pair-correlation function** for each of the slices
+- **`main.r`** - visualize both pcf of 3d initial dataset and of its 2d slices
