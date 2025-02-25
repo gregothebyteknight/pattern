@@ -11,11 +11,11 @@ from skimage.io import imread
 from pathlib import Path
 
 # DOWNLOADING DATA AND LIST VARIABLES
-masks = imread("../data/full_mask_final_segmentation_hwatershed_bg500_90%.tif")
+masks = imread("../data/initial_data/full_mask_final_segmentation_hwatershed_bg500_90%.tif")
 masks = np.swapaxes(np.swapaxes(masks, 0, 1), 1, 2) # swapping x and y axes, then z and y axes
 print("Shape of the masks:", masks.shape)
 
-fold_list = [f.path for f in os.scandir("../data/SIMILARITY10_In115") if f.is_dir()]
+fold_list = [f.path for f in os.scandir("../data/initial_data") if f.is_dir()]
 n_chan = len(fold_list) # number of channels == n of cell markers
 chan_list = [] # list of channel names
 

@@ -39,5 +39,5 @@ pheatmap::pheatmap(cor(expr_corr))
 # SAVING EXPRESSION FILES
 write.table(expr_corr, "../data/expression_annotated_corrected.csv",
             sep = ",", row.names = FALSE)
-write.table(expr, "../data/expression_annotated.csv",
-            sep = ",", row.names = FALSE)
+# write.table(expr, "../data/expression_annotated.csv",
+#             sep = ",", row.names = FALSE)

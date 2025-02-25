@@ -70,5 +70,7 @@ pc_for_slice <- function(a, b, g, cell_mat) {
                                pp_box(as.matrix(slices[, 1:2])))
   # Compute the 2D K-Ripley function
   k <- spatstat.explore::Kest(pp_obj)
-  spatstat.explore::pcf.fv(k, method = "b", spar = 0.5)
+  pcf <- spatstat.explore::pcf.fv(k, method = "b", spar = 0.5)
+
+  list(pcf = pcf, num_cells = dim(slices)[1]) # return pcf and number of cells
 }

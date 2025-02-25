@@ -131,13 +131,14 @@ def spatial_cells(adata, coords):
 
     # Create a DataFrame with your coordinates and cluster information
     cell_df = pd.DataFrame({
+        "Area": coords["area"],
         'X': coords['x'],
         'Y': coords['y'],
         'Z': coords['z'],
         'Clusters': coords['Clusters'],
         'Cells': coords['Cells']
     })
-    cell_df.to_csv('../data/cell_coordinates_clusters.csv')
+    cell_df.to_csv('../data/cell_coordinates.csv') # overwrites original file without clusters
 
     # Create a window for visualization in `spatial_plot` function
     scene = dict(
