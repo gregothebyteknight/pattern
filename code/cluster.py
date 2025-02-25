@@ -26,7 +26,7 @@ marker_to_cell = {
     "15": "Potentially breast cancer (PanCK, GATA3, CAIX)",
     "0": "Some T cells (CD3)",
     "12": "MMP9 High cells",
-    "11": "Potentional fibroblasts (fibronectin)",
+    "11": "Potentially fibroblasts (fibronectin)",
     "2": "Potentially fibroblasts (fibronectin)",
     "9": "Potentially fibroblasts (fibronectin)",
     "4": "Potentially fibroblasts (fibronectin)",

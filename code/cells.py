@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 coords = pd.read_csv("../data/cell_coordinates.csv", index_col = 0)
-cell_type = [16] # some cell types are arranged between several clusters
+cell_type = [0] # some cell types are arranged between several clusters
 
 def select_cell(coords, cell_type):
     cell_coords = coords[coords['Clusters'].isin(cell_type)]

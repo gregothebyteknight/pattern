@@ -12,6 +12,7 @@ library(RColorBrewer)
 coords <- read.csv("../data/selected_cell_coordinates.csv",
                    row.names = 1) # data for cancer cells
 
+# COMPUTING PCF FOR SLICES
 # Creating a point pattern object
 cell_mat <- as.matrix(coords[, 1:3])
 
@@ -22,26 +23,26 @@ true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
 angles <- seq(0, 2 * pi, length.out = 10)
 
 # Create an empty lists to store the pcf objects and number of cells
-pcf_list <- vector("list", length(angles * angles))
-num_cells_list <- numeric(length(angles * angles))
+pcf_list <- vector("list", length = length(angles)^2)
+num_cells_list <- numeric(length = length(angles)^2)
 
 # Loop over the roll angles
 index <- 1
-for (roll in seq_along(angles)){
-  for (pinch in seq_along(angles)){
+for (roll in angles){
+  for (pinch in angles){
     # Call the pc_for_slice function to compute pcf for slice of 3D dataframe
-    result <- pc_for_slice(a = 0, b = angles[pinch], g = angles[roll],
+    result <- pc_for_slice(a = 0, b = pinch, g = roll,
                            cell_mat = cell_mat)
     pcf_list[[index]] <- result$pcf
     num_cells_list[index] <- result$num_cells
-    max_pcf <- max(max_pcf, max(pcf_list[[i]]$pcf)) # for plot's axis setting
     index <- index + 1
   }
 }
 
-# Plot the first pcf curve
+# COMPUTING TRUE SPATIAL PCF
 pcf_true <- spatstat.explore::pcf3est(true_pattern)
-max_pcf <- max(pcf_true$pcf)
+max_pcf <- max(sapply(pcf_list, function(x) max(x$pcf, na.rm = TRUE)))
+max_pcf <- max(pcf_true$pcf, max_pcf)
 
 png(filename = "../images/pc_plot.png")
 plot(pcf_true,
@@ -72,3 +73,6 @@ writeLines(c(paste("Executed Script: main.r"),
              capture.output(sessionInfo())),
            file.path("../logs",
                      paste0("logs_main_", Sys.Date(), ".txt")))
+
+print(index)
+print(length(pcf_list[[20]]$r))
