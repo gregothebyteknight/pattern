@@ -1,12 +1,12 @@
 
 source("./slices.r")
-setwd("./code")
-getwd()
+getwd() # wd need to be set explicitly, in terminal :(
 library(spatstat)
 library(viridis)    # for color palettes
 library(scales)     # for col_numeric
 library(fields)     # for image.plot (colorbar)
 library(RColorBrewer)
+library(Hmisc)
 
 # Downloading the spatial centered data of specific cell type
 coords <- read.csv("../data/selected_cell_coordinates.csv",
@@ -20,16 +20,17 @@ true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
                                    cell_mat[, 3], pp_box(cell_mat))
 
 # Define a vector of angles
-angles <- seq(0, 2 * pi, length.out = 10)
+rolls <- runif(n = 10, min = 0, max = 2 * pi)
+pinches <- runif(n = 10, min = 0, max = 2 * pi)
 
 # Create an empty lists to store the pcf objects and number of cells
-pcf_list <- vector("list", length = length(angles)^2)
-num_cells_list <- numeric(length = length(angles)^2)
+pcf_list <- vector("list", length = length(rolls) * length(pinches))
+num_cells_list <- numeric(length = length(rolls) * length(pinches))
 
 # Loop over the roll angles
 index <- 1
-for (roll in angles){
-  for (pinch in angles){
+for (roll in rolls){
+  for (pinch in pinches){
     # Call the pc_for_slice function to compute pcf for slice of 3D dataframe
     result <- pc_for_slice(a = 0, b = pinch, g = roll,
                            cell_mat = cell_mat)
@@ -41,38 +42,43 @@ for (roll in angles){
 
 # COMPUTING TRUE SPATIAL PCF
 pcf_true <- spatstat.explore::pcf3est(true_pattern)
-max_pcf <- max(sapply(pcf_list, function(x) max(x$pcf, na.rm = TRUE)))
-max_pcf <- max(pcf_true$pcf, max_pcf)
 
-png(filename = "../images/pc_plot.png")
-plot(pcf_true,
-     main = "Pair Correlation Functions for Varying Angles",
-     xlab = "r (Distance)", ylab = "pcf", col = "#84a98c")
+# Define a shared r grid (using the r values from true PCF)
+r_grid <- pcf_true$r
 
-# Prepare continuous color panel
-col_fun <- scales::col_numeric(palette = viridis::cividis(100),
-                               domain = range(num_cells_list))
-curve_colors <- col_fun(num_cells_list)
-
-# Overlay the rest of the pcf curves
-for (i in seq_along(pcf_list)) {
-  points(pcf_list[[i]]$r, pcf_list[[i]]$pcf, type = "l", col = curve_colors[i])
+# Function to interpolate a PCF object onto the r grid
+interp_pcf <- function(pcf_list, r_grid) {
+  approx(x = pcf_list$r, y = pcf_list$pcf, xout = r_grid, rule = 2)$y
 }
 
-# Saving the plot and session info
-fields::image.plot(legend.only = TRUE,
-                   zlim = range(num_cells_list),
-                   col = viridis::cividis(100),
-                   legend.lab = "Number of cells",
-                   legend.line = 2,
-                   legend.mar = 3)
+# Interpolate each PCF in your list onto r_grid
+pcf_matrix <- sapply(pcf_list, interp_pcf, r_grid = r_grid)
+
+# Compute the mean and SD across all curves at each common r value
+weighted_mean_pcf <- apply(pcf_matrix, 1, function(x) {
+  weighted.mean(x, weights = num_cells_list, na.rm = TRUE)
+})
+weighted_sd_pcf <- apply(pcf_matrix, 1, function(x) {
+  sqrt(wtd.var(x, weights = num_cells_list, na.rm = TRUE))
+})
+
+# Plot the true PCF, then overlay the mean PCF with ±1 standard deviation
+png(filename = "../images/pc_plot_mean_sd.png", width = 800, height = 600)
+y_max <- max(max(pcf_true$iso), max(weighted_mean_pcf + weighted_sd_pcf))
+plot(pcf_true, col = "#84a98c", lwd = 2, ylim = c(0, y_max),
+     xlab = "r (Distance)", ylab = "pcf", main = "Mean PCF with ±1 SD")
+
+# Addition of dashed lines for mean ± SD
+lines(r_grid, weighted_mean_pcf + weighted_sd_pcf, col = "gray", lty = 2)
+lines(r_grid, weighted_mean_pcf - weighted_sd_pcf, col = "gray", lty = 2)
+
+# Addition of a shaded region between mean + SD and mean - SD
+polygon(c(r_grid, rev(r_grid)),
+        c(weighted_mean_pcf + weighted_sd_pcf,
+          rev(weighted_mean_pcf - weighted_sd_pcf)),
+        col = rgb(0.1, 0.1, 0.8, 0.2), border = NA)
+
+# Additiom of the true PCF for reference
+lines(r_grid, weighted_mean_pcf, type = "l", lwd = 2, col = "#7373c9")
+
 dev.off()
-
-dir.create("../logs", showWarnings = FALSE)
-writeLines(c(paste("Executed Script: main.r"),
-             capture.output(sessionInfo())),
-           file.path("../logs",
-                     paste0("logs_main_", Sys.Date(), ".txt")))
-
-print(index)
-print(length(pcf_list[[20]]$r))

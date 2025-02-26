@@ -65,6 +65,11 @@ pc_for_slice <- function(a, b, g, cell_mat) {
   slices <- mut_frame %>%
     filter(slice(0, 0, 1, 10, as.matrix(mut_frame[, 1:3])))
   print(sprintf("Number of cells in slice: %s", dim(slices)[1]))
+  if (dim(slices)[1] <= 1) {
+    return(list(pcf = data.frame(runif(n = 513, min = 0, max = 10),
+                                 pcf = rep(0, 513)),
+                num_cells = dim(slices)[1]))
+  }
   # Create a 2D point pattern object
   pp_obj <- spatstat.geom::ppp(slices$X, slices$Y,
                                pp_box(as.matrix(slices[, 1:2])))
