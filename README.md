@@ -28,10 +28,10 @@ The PC function accounts for these factors by normalizing by the density; this a
 For 2D volume correction will be just $2\pi r dr$
 
 ## Calculations
-**Pipeline**: `reshape` > `express` > `cluster` > `cells` > `slices` > `main` (dependent of `slices`)
+**Pipeline**: `reshape` > `express` > `cluster` > `choose` > `slices` > `main` (dependent of `slices`)
 - **`reshape.py`** - takes stacks of images corresponding to the certain cell markers and cell masks ~ clusterization. This script creates cell datasets with coordinates `cell_coordinates.csv` and with intensities of certain cell markers - `cell_intensities.csv`
 - **`express.r`** - creates expression matrices, both raw `expression_annotated.csv` and corrected `expression_annotated_corrected.csv` with compensation matrix `compensationMatrix.csv`
 - **`cluster.py`** - performs clusterization and manual annotation of expression matrix `expression_annotated_corrected.csv`. Makes various plots for analysis
-- **`cells.py`** - selects cell cluster obtain in the previous script > `cell_coordinates_clusters.csv`
-- **`slices.r`** - contains function to perform random sections based on the 3d dataset `cell_coordinates`. Compute **Pair-correlation function** for each of the slices
-- **`main.r`** - visualize both pcf of 3d initial dataset and of its 2d slices
+- **`choose.py`** - selects cell cluster obtain in the previous script > `cell_coordinates_clusters.csv`
+- **`module.r`** - contains function to perform random sections based on the 3d dataset `cell_coordinates`. Compute **Pair-correlation function** for each of the slices
+- **`slice.r`** - visualize both pcf of 3d initial dataset and of its 2d slices

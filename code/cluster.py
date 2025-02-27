@@ -13,43 +13,44 @@ from sklearn.preprocessing import StandardScaler
 # DOWNLOAD EXPRESSION MATRIX, CELL COORDINATES
 expr = pd.read_csv('../data/expression_annotated_corrected.csv')
 coords = pd.read_csv('../data/cell_coordinates.csv', index_col = 0)
+
+tags_name = np.array(expr.columns)
 print("Shape of expression matrix:", expr.shape)
 
 # VARIABLES
 marker_to_cell = {
-    "17": "Cytotoxic T cells (CD8a)",
-    "13": "B cells (CD20)",
-    "16": "Macrophages (CD68)",
-    "19": "Epithelial cells (E/P Cadherin)",
-    "6": "Breast cancer cells (PanCK, GATA3)",
-    "10": "Potentially breast cancer (PanCK, GATA3)",
-    "15": "Potentially breast cancer (PanCK, GATA3, CAIX)",
-    "0": "Some T cells (CD3)",
-    "12": "MMP9 High cells",
-    "11": "Potentially fibroblasts (fibronectin)",
-    "2": "Potentially fibroblasts (fibronectin)",
-    "9": "Potentially fibroblasts (fibronectin)",
-    "4": "Potentially fibroblasts (fibronectin)",
-    "14": "Potentially malignant cells (CD34, Podoplanin)"
-}
-
-# SCALING
-scaler = StandardScaler()
-expr_scale = scaler.fit_transform(expr)
+    "5": "Cytotoxic T cells (CD8a, CD3, CD45)",
+    "18": "B cells (CD20)",
+    "19": "Macrophages (CD68)",
+    "12": "Basal layer epithelium (CK5, SMA, CK14)",
+    "14": "Endithelium (vWF+CD31, Vimentin)",
+    "8": "Carcinoma (CK19, Her2, CK7, panCK)",
+    "4": "Potentially carcinoma (CK19, Her2, CK7, panCK)",
+    "21": "Potentially neutrophiles (MPO, pS6, CD44)",
+    "22": "Potentially neutrophiles (MPO, pS6, CD44)",
+    "9": "Fibroblasts (CollagenI)",
+    "16": "Potentially plasma cells (CD138, cRARP+cCasp3)",
+} # complete according to umaps and dotplot
 
 # CLUSTERING 
-tags_name = np.array(expr.columns)
-expr_scale = pd.DataFrame(expr_scale, columns = tags_name)
-adata = sc.AnnData(X = expr_scale)
+def clustering(expr):
+    # SCALING
+    scaler = StandardScaler()
+    expr_scale = scaler.fit_transform(expr)
 
-sc.pp.neighbors(adata, n_pcs = 15)
-sc.tl.leiden(adata, key_added = "Clusters")
-print(f"Number of clusters: {adata.obs['Clusters'].nunique()}")
+    # LEIDEN CLUSTERING 
+    expr_scale = pd.DataFrame(expr_scale, columns = tags_name)
+    adata = sc.AnnData(X = expr_scale)
 
-sc.tl.umap(adata)  # Compute UMAP
-sc.pl.umap(adata, color = "Clusters", legend_loc = "on data", return_fig = True)
-plt.savefig("../images/umap_unlabeled", dpi = 300, bbox_inches = "tight")
-plt.close()
+    sc.pp.neighbors(adata, n_pcs = 15)
+    sc.tl.leiden(adata, key_added = "Clusters")
+    print(f"Number of clusters: {adata.obs['Clusters'].nunique()}")
+
+    sc.tl.umap(adata)  # Compute UMAP
+    sc.pl.umap(adata, color = "Clusters", legend_loc = "on data", return_fig = True)
+    adata.write("../data/adata_umap.h5ad")
+    plt.savefig("../images/umap_unlabeled", dpi = 300, bbox_inches = "tight")
+    plt.close()
 
 # ANNOTATION
 def umap_stacked(adata):
@@ -125,30 +126,29 @@ def spatial_cells(adata, coords):
     cells.fillna('Unknown', inplace = True)
     cells = np.array(cells)
 
-    coords["Clusters"] = clusters
-    coords["Cells"] = cells
-    coords['z'] = coords['z'] * 2 # every slice is 2 micrometers
+    coords["clusters"] = clusters
+    coords["cells"] = cells
 
     # Create a DataFrame with your coordinates and cluster information
     cell_df = pd.DataFrame({
-        "Area": coords["area"],
-        'X': coords['x'],
-        'Y': coords['y'],
-        'Z': coords['z'],
-        'Clusters': coords['Clusters'],
-        'Cells': coords['Cells']
+        "area": coords["area"],
+        'x': coords['x'],
+        'y': coords['y'],
+        'z': coords['z'],
+        'clusters': coords['clusters'],
+        'cells': coords['cells']
     })
     cell_df.to_csv('../data/cell_coordinates.csv') # overwrites original file without clusters
 
     # Create a window for visualization in `spatial_plot` function
     scene = dict(
-        xaxis = dict(range = [0, 900]),
-        yaxis = dict(range = [0, 900]),
-        zaxis = dict(range = [0, 200])
+        xaxis = dict(range = [0, 1400]),
+        yaxis = dict(range = [0, 1400]),
+        zaxis = dict(range = [0, 1400])
         )
     return cell_df, scene
 
-def spatial_plot(adata, coords, accent, title, output):
+def spatial_plot(adata, coords, accent, title, output, type = "-1"):
     """
     Visualization either cell clusters or cell annotation in 3D
     @adata: scanpy object
@@ -158,7 +158,9 @@ def spatial_plot(adata, coords, accent, title, output):
     @output(str): path to the output image
     """
     cell_df, scene = spatial_cells(adata, coords)
-    fig = px.scatter_3d(cell_df, x = 'X', y = 'Y', z = 'Z', color = accent, 
+    if type != "-1":
+        cell_df = cell_df[cell_df["clusters"] == type]
+    fig = px.scatter_3d(cell_df, x = 'x', y = 'y', z = 'z', color = accent, 
                         title = title, opacity = 0.7)
     fig.update_traces(marker = dict(size = 1))
 
@@ -166,8 +168,11 @@ def spatial_plot(adata, coords, accent, title, output):
     fig.write_image(output, scale = 2, engine = "kaleido")
     
 # Run the functions you want
-umap_stacked(adata)
-genes_dot(adata, n_genes = 5)
+# clustering(expr)
+# umap_stacked(adata)
+# genes_dot(adata, n_genes = 5)
+
+adata = sc.read("../data/adata_umap.h5ad")
 map_cells(adata, marker_to_cell)
-spatial_plot(adata, coords, 'Clusters', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
-spatial_plot(adata, coords, 'Cells', '3D Scatter - Cell Types', "../images/cell_types_3d.png")
+spatial_plot(adata, coords, 'clusters', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
+spatial_plot(adata, coords, 'cells', '3D Scatter - Cell Types', "../images/cell_types_3d.png")

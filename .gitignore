@@ -1,6 +1,6 @@
 # Ignore big data file
-./data/SIMILARITY10_ln11/*
-./data/full_mask_final_segmentation_hwatershed_bg500_90%.tif
+./data/*
+
 
 # Ignore archive files
 archive/*

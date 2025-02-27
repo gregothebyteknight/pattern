@@ -1,0 +1,43 @@
+Metal Tag,Target,clean_target,Antibody Clone,Final Concentration / Dilution,full,singleTIFFs,MeasureMask
+In113,FSP1,FSP1,EPR2761(2),3 ug/mL,1,1,1
+In115,SMA,SMA,1A4,2 ug/mL,1,1,1
+La139,H3K27me3,H3K27me3,C36B11,3 ug/mL,1,1,1
+Pr141,pan_CK,panCK,AE1,.5 ug/mL,1,1,1
+Nd142,Fibronectin,Fibronectin,10/Fibronectin,5 ug/mL,1,1,1
+Nd143,CD44,CD44,polyclonal_CD44,3 ug/mL,1,1,1
+Nd144,CD34,CD34,EP373Y,5 ug/mL,1,1,1
+Nd145,antibody_did_not_work_channel_anquired,NaN,NaN,NaN,1,0,0
+Nd146,CD68,CD68,KP1,4 ug/mL,1,1,1
+Sm147,Keratin14,CK14,LL002,5 ug/mL,1,1,1
+Nd148,VCAM1,VCAM1,EPR5047,5 ug/mL,1,1,1
+Sm149,Vimentin,Vimentin,D21H3,2 ug/mL,1,1,1
+Nd150,VEGF,VEGF,G153-694,10 ug/mL,1,1,1
+Eu151,CD31,CD31,EPR3094,5 ug/mL,1,1,1
+Sm152,CD3,CD3,CD3-12,5 ug/mL,1,1,1
+Eu153,Podoplanin,Podoplanin,NC-08,8 ug/mL,1,1,1
+Sm154,ICAM-1,ICAM-1,EP1442Y,6 ug/mL,1,1,1
+Gd155,antibody_did_not_work_channel_anquired,NaN,NaN,NaN,1,0,0
+Gd156,antibody_did_not_work_channel_anquired,NaN,NaN,NaN,1,0,0
+Gd158,MMP9,MMP9,D6O3H,5 ug/mL,1,1,1
+Tb159,antibody_did_not_work_channel_anquired,NaN,NaN,NaN,1,0,0
+Gd160,MMP14,MMP14,EP1264Y,4 ug/mL,1,1,1
+Dy161,CD8a,CD8a,C8/144B,5 ug/mL,1,1,1
+Dy162,CD45,CD45,HI100 & 2B11,3 ug/mL,1,1,1
+Dy163,GATA3,GATA3,L50-823,5 ug/mL,1,1,1
+Dy164,CD20,CD20,L26,4 ug/mL,1,1,1
+Ho165,CXCL13,CXCL13,Polyclonal_CXCL13 / BLC / BCA-1,5 ug/mL,1,1,1
+Er166,CAIX,CAIX,polyclonal_CA9_AF2188,4 ug/mL,1,1,1
+Er167,E_P-Cadherin,E/P-Cadherin,36/E-Cadherin,3 ug/mL,1,1,1
+Er168,antibody_did_not_work_channel_anquired,NaN,NaN,NaN,1,0,0
+Tm169,CD140b,CD140b,Y92,5 ug/mL,1,1,1
+Er170,Caveolin1,Caveolin1,D46G3,3 ug/mL,1,1,1
+Yb171,CD4,CD4,EPR6855,5 ug/mL,1,1,1
+Yb172,vWF,vWF,poly vwf,5 ug/mL,1,1,1
+Yb173,CXCL12,CXCL12,79018,5 ug/mL,1,1,1
+Yb174,VEGFR1,VEGFR1,Y103,5 ug/mL,1,1,1
+Lu175,ZO-1,ZO-1,polyclonal_ZO-1,5 ug/mL,1,1,1
+Yb176,cPARP_cCaspase3,cPARP_cCaspase3,F21-852 & C92-605,3 ug/mL,1,1,1
+Ir191,Iridium,Iridium,Ir,0 ug/mL,1,1,0
+Ir193,Iridium,Iridium,Ir,0 ug/mL,1,1,1
+Pt198,Ki-67,Ki-67,B56,5 ug/mL,1,1,1
+Y89,antibody_did_not_work_channel_anquired,NaN,NaN,NaN,1,0,0
