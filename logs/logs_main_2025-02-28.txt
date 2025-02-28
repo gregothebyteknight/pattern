@@ -1,0 +1,48 @@
+Executed Script: main.r
+R version 4.3.3 (2024-02-29)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 24.04.2 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.12.0 
+LAPACK: /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Europe/Paris
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] RColorBrewer_1.1-3     fields_16.3            spam_2.11-1           
+ [4] scales_1.3.0           viridis_0.6.5          viridisLite_0.4.2     
+ [7] magrittr_2.0.3         spatstat_3.3-1         spatstat.linnet_3.2-5 
+[10] spatstat.model_3.3-4   rpart_4.1.23           spatstat.explore_3.3-4
+[13] nlme_3.1-164           spatstat.random_3.3-2  spatstat.geom_3.3-5   
+[16] spatstat.univar_3.1-1  spatstat.data_3.1-4    lubridate_1.9.4       
+[19] forcats_1.0.0          stringr_1.5.1          dplyr_1.1.4           
+[22] purrr_1.0.4            readr_2.1.5            tidyr_1.3.1           
+[25] tibble_3.2.1           ggplot2_3.5.1          tidyverse_2.0.0       
+
+loaded via a namespace (and not attached):
+ [1] generics_0.1.3        tensor_1.5            stringi_1.8.4        
+ [4] lattice_0.22-5        hms_1.1.3             spatstat.utils_3.1-2 
+ [7] grid_4.3.3            timechange_0.3.0      maps_3.4.2.1         
+[10] Matrix_1.6-5          spatstat.sparse_3.1-0 gridExtra_2.3        
+[13] mgcv_1.9-1            abind_1.4-8           cli_3.6.4            
+[16] rlang_1.1.5           polyclip_1.10-7       munsell_0.5.1        
+[19] splines_4.3.3         withr_3.0.2           tools_4.3.3          
+[22] tzdb_0.4.0            deldir_2.0-4          colorspace_2.1-1     
+[25] vctrs_0.6.5           R6_2.6.1              lifecycle_1.0.4      
+[28] pkgconfig_2.0.3       pillar_1.10.1         gtable_0.3.6         
+[31] Rcpp_1.0.14           glue_1.8.0            tidyselect_1.2.1     
+[34] farver_2.1.2          goftest_1.2-3         dotCall64_1.2        
+[37] compiler_4.3.3       

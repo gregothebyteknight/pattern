@@ -23,7 +23,7 @@ marker_to_cell = {
     "18": "B cells (CD20)",
     "19": "Macrophages (CD68)",
     "12": "Basal layer epithelium (CK5, SMA, CK14)",
-    "14": "Endithelium (vWF+CD31, Vimentin)",
+    "14": "Endothelium (vWF+CD31, Vimentin)",
     "8": "Carcinoma (CK19, Her2, CK7, panCK)",
     "4": "Potentially carcinoma (CK19, Her2, CK7, panCK)",
     "21": "Potentially neutrophiles (MPO, pS6, CD44)",
@@ -109,6 +109,7 @@ def map_cells(adata, marker_to_cell):
     """
     adata.obs["manual_celltype_annotation"] = adata.obs["Clusters"].map(marker_to_cell)
     sc.pl.umap(adata, color = ["manual_celltype_annotation"], return_fig = True)
+    adata.write("../data/adata_umap.h5ad")
     plt.savefig("../images/cell_types.png", dpi = 300, bbox_inches = "tight")
     plt.close()
 
@@ -126,8 +127,8 @@ def spatial_cells(adata, coords):
     cells.fillna('Unknown', inplace = True)
     cells = np.array(cells)
 
-    coords["clusters"] = clusters
-    coords["cells"] = cells
+    coords["cluster"] = clusters
+    coords["cell"] = cells
 
     # Create a DataFrame with your coordinates and cluster information
     cell_df = pd.DataFrame({
@@ -135,8 +136,8 @@ def spatial_cells(adata, coords):
         'x': coords['x'],
         'y': coords['y'],
         'z': coords['z'],
-        'clusters': coords['clusters'],
-        'cells': coords['cells']
+        'cluster': coords['cluster'],
+        'cell': coords['cell']
     })
     cell_df.to_csv('../data/cell_coordinates.csv') # overwrites original file without clusters
 
@@ -159,20 +160,21 @@ def spatial_plot(adata, coords, accent, title, output, type = "-1"):
     """
     cell_df, scene = spatial_cells(adata, coords)
     if type != "-1":
-        cell_df = cell_df[cell_df["clusters"] == type]
+        cell_df = cell_df[cell_df["cluster"] == type]
     fig = px.scatter_3d(cell_df, x = 'x', y = 'y', z = 'z', color = accent, 
                         title = title, opacity = 0.7)
     fig.update_traces(marker = dict(size = 1))
 
     fig.update_layout(scene = scene)
     fig.write_image(output, scale = 2, engine = "kaleido")
-    
-# Run the functions you want
-# clustering(expr)
-# umap_stacked(adata)
-# genes_dot(adata, n_genes = 5)
 
-adata = sc.read("../data/adata_umap.h5ad")
-map_cells(adata, marker_to_cell)
-spatial_plot(adata, coords, 'clusters', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
-spatial_plot(adata, coords, 'cells', '3D Scatter - Cell Types', "../images/cell_types_3d.png")
+if __name__ == "__main__":
+    # Run the functions you want
+    # clustering(expr)
+    # umap_stacked(adata)
+    # genes_dot(adata, n_genes = 5)
+
+    adata = sc.read("../data/adata_umap.h5ad")
+    map_cells(adata, marker_to_cell)
+    spatial_plot(adata, coords, 'cluster', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
+    spatial_plot(adata, coords, 'cell', '3D Scatter - Cell Types', "../images/cell_types_3d.png")

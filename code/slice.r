@@ -65,7 +65,7 @@ weighted_sd_pcf <- apply(pcf_matrix, 1, function(x) {
 
 # VISUALIZATION
 # Plot the true PCF, then overlay the mean PCF with ±1 standard deviation
-png(filename = "../images/pc_plot_mean_sd.png", width = 800, height = 600)
+png(filename = "../images/pc_mean_sd.png", width = 800, height = 600)
 
 y_max <- max(max(pcf_true$iso), max(weighted_mean_pcf + weighted_sd_pcf))
 plot(pcf_true, col = "#84a98c", lwd = 2, ylim = c(0, y_max),
@@ -85,3 +85,9 @@ polygon(c(r_grid, rev(r_grid)),
 lines(r_grid, weighted_mean_pcf, type = "l", lwd = 2, col = "#7373c9")
 
 dev.off()
+
+dir.create("../logs", showWarnings = FALSE)
+writeLines(c(paste("Executed Script: slice.r"),
+             capture.output(sessionInfo())),
+           file.path("../logs",
+                     paste0("logs_slice_", Sys.Date(), ".txt")))
