@@ -2,6 +2,7 @@
 library(tidyverse)
 library(spatstat)
 library(magrittr)
+library(psych)
 
 # Define the ranges for each coordinate
 pp_box <- function(mat) {
@@ -78,4 +79,37 @@ pc_for_slice <- function(a, b, g, cell_mat) {
   pcf <- spatstat.explore::pcf.fv(k, method = "b", spar = 0.5)
 
   list(pcf = pcf, num_cells = dim(slices)[1]) # return pcf and number of cells
+}
+
+angle_analysis <- function(cell_mat, valid_pairs) {
+  "Image slice of point pattern corresponds to the 
+  selected n_cell_range
+  cell_mat: the 3D pint matrix
+  "
+  valid_pairs <- as.data.frame(valid_pairs)
+  colnames(valid_pairs) <- c("roll", "pinch")
+  valid_pairs$angle_sum <- valid_pairs$roll + valid_pairs$pinch
+
+  # Identify the row with the minimal sum
+  mean_sum <- mean(valid_pairs$angle_sum)
+  closest_index <- which.min(abs(valid_pairs$angle_sum - mean_sum))
+  closest_pair <- valid_pairs[closest_index, c("roll", "pinch")]
+
+  pinch_value <- as.numeric(closest_pair["pinch"])
+  roll_value <- as.numeric(closest_pair["roll"])
+
+  mut_mat <- t(rotation(0, pinch_value,
+                        roll_value) %*% t(cell_mat))
+  colnames(mut_mat) <- c("X", "Y", "Z")
+  # Convert mutation_matrix to dataframe object to apply slice function
+  mut_frame <- as.data.frame(mut_mat)
+  # Create a slice of the 3D point pattern
+  slices <- mut_frame %>%
+    filter(slice(0, 0, 1, 10, as.matrix(mut_frame[, 1:3])))
+  print(sprintf("Number of cells in slice: %s", dim(slices)[1]))
+
+  png(filename = "../images/pcplot.png")
+  plot(slices[, "X"], slices[, "Y"], lwd = 2,
+       xlab = "X axis", ylab = "Y axis",
+       main = "Pair Correlation Functions for Varying Angles")
 }

@@ -1,10 +1,21 @@
 
 # IMPORT MODULES
-import numpy as np
 import pandas as pd
+import argparse
 
 coords = pd.read_csv("../data/cell_coordinates.csv", index_col = 0)
-cluster_type = coords["cluster"].unique() # some cell types are arranged between several clusters
+cluster_type = [14] # some cell types are arranged between several clusters
+
+parser = argparse.ArgumentParser(
+                    prog = 'choose.py',
+                    description = 'Choose the cluster of cells ')
+
+parser.add_argument('--clusters', '-c', type = int, nargs = '+', default = [-1])
+args = parser.parse_args()
+cluster_type = args.clusters
+
+if cluster_type[0] == -1:
+    cluster_type = coords["cluster"].unique()
 
 
 def select_cell(coords, cluster_type):

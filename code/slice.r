@@ -22,6 +22,7 @@ true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
 # Define a vector of angles
 rolls <- runif(n = 30, min = 0, max = 2 * pi)
 pinches <- runif(n = 30, min = 0, max = 2 * pi)
+# yaws <- runif(n = 30, min = 0, max = 2 * pi) have no effect
 
 # Create an empty lists to store the pcf objects and number of cells
 pcf_list <- vector("list", length = length(rolls) * length(pinches))
