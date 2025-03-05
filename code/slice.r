@@ -9,8 +9,7 @@ library(RColorBrewer)
 library(Hmisc)
 
 # Downloading the spatial centered data of specific cell type
-coords <- read.csv("../data/selected_cell_coordinates.csv",
-                   row.names = 1) # data for cancer cells
+coords <- read.csv("../data/selected_cell_coordinates.csv")
 
 # COMPUTING PCF FOR SLICES
 # Creating a point pattern object

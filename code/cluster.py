@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 
 # DOWNLOAD EXPRESSION MATRIX, CELL COORDINATES
 expr = pd.read_csv('../data/expression_annotated_corrected.csv')
-coords = pd.read_csv('../data/cell_coordinates.csv', index_col = 0)
+coords = pd.read_csv('../data/cell_coordinates.csv')
 
 tags_name = np.array(expr.columns)
 print("Shape of expression matrix:", expr.shape)
@@ -139,7 +139,7 @@ def spatial_cells(adata, coords):
         'cluster': coords['cluster'],
         'cell': coords['cell']
     })
-    cell_df.to_csv('../data/cell_coordinates.csv') # overwrites original file without clusters
+    cell_df.to_csv('../data/cell_coordinates.csv', index = False) # overwrites original file without clusters
 
     # Create a window for visualization in `spatial_plot` function
     scene = dict(

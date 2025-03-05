@@ -57,5 +57,5 @@ cell_props = skimage.measure.regionprops_table(masks,
 cell_props['centroid-2'] = np.array(cell_props['centroid-2']) * 2 # width of slices (z axis) is 2 micrometers
 
 channel_order(fold_list)
-pd.DataFrame(cell_props).to_csv("../data/cell_coordinates.csv", header = ["area", "x", "y", "z"])
-pd.DataFrame(cell_int).to_csv("../data/cell_intensities.csv", header = chan_list)
+pd.DataFrame(cell_props).to_csv("../data/cell_coordinates.csv", header = ["area", "x", "y", "z"], index = False)
+pd.DataFrame(cell_int).to_csv("../data/cell_intensities.csv", header = chan_list, index = False)
