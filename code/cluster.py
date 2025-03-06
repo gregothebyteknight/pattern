@@ -69,17 +69,10 @@ def umap_stacked(adata):
     axes = axes.flatten()
 
     for i, tag in enumerate(tags_name):
-        sc.pl.umap(
-            adata,
-            color = tag,
-            vmin = 0,
-            vmax = "p99",
-            sort_order = False,
-            frameon = False,
-            cmap = "Reds",
-            show = False,  # Prevent immediate display
-            ax = axes[i]   # Assign to correct subplot
-        )
+        sc.pl.umap(adata, color = tag, vmin = 0, vmax = "p99", sort_order = False,
+                   frameon = False, cmap = "Reds",
+                   show = False,  # Prevent immediate display
+                   ax = axes[i])   # Assign to correct subplot
 
     # Hide unused subplots (if any)
     for j in range(i + 1, len(axes)):
