@@ -7,6 +7,7 @@ warnings.filterwarnings("ignore")
 import numpy as np
 
 from STalign import STalign
+from scipy.stats import trim_mean 
 from contextlib import redirect_stdout # to supress output
 
 # INITIALIZE VARIABLES
@@ -18,28 +19,39 @@ def affine(deg, df_s, df_t = None):
     """
     Performs affine transformation on the df_s
     Applies both rotation and translational matrices
+    Additionally - scaling in respect of df_t
     @def(int): degree of rotation (clockwise)
     @df_s(pd.DataFrame): source slice dataset
     @df_t(pd.DataFrame): target slice dataset
     """
-    rad = (np.pi / 180) * -deg
+    rad = np.deg2rad(-deg)
     x_s, y_s = df_s['x'].to_numpy(), df_s['y'].to_numpy()
 
     # rotation matrix
     l_mat = np.array([[np.cos(rad), -np.sin(rad)],
                   [np.sin(rad), np.cos(rad)]])
-
     x_rot, y_rot = l_mat @ np.vstack((x_s, y_s))
 
     if df_t is not None:
         x_t, y_t = df_t['x'].to_numpy(), df_t['y'].to_numpy()
+
+        # applying scaling
+        x_scl = np.std(x_t) / np.std(x_rot) * x_rot
+        y_scl = np.std(y_t) / np.std(y_rot) * y_rot
+        
         # translation matrix
         t_mat = np.array([
-            np.mean(x_t) - np.mean(x_rot),
-            np.mean(y_t) - np.mean(y_rot)])
+            trim_mean(x_t, proportiontocut = 0.1) - trim_mean(x_scl, proportiontocut = 0.1),
+            trim_mean(y_t, proportiontocut = 0.1) - trim_mean(y_scl, proportiontocut = 0.1)
+    ])
 
-        df_s['x'] = x_rot + t_mat[0]
-        df_s['y'] = y_rot + t_mat[1]
+    else: 
+        t_mat = [0, 0]
+        x_scl, y_scl = x_rot, y_rot
+
+    df_s['x'] = x_scl + t_mat[0] 
+    df_s['y'] = y_scl + t_mat[1] 
+
     return df_s
 
 def coord_align(df_s, df_t):
@@ -63,8 +75,8 @@ def coord_align(df_s, df_t):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     torch.set_default_device(device) # for point mapping
 
-    params = {'niter': 1, 'diffeo_start': 1, 'device': device,
-              'epL': 4e-08, 'epV': 0}
+    params = {'niter': 10000, 'diffeo_start': 10000, 'device': device,
+              'epL': 2e-08, 'epV': 0}
 
     out = STalign.LDDMM([y_s_rast, x_s_rast], s_tensor, [y_t_rast, x_t_rast], t_tensor, **params)
 

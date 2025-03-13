@@ -3,19 +3,13 @@
 import numpy as np
 import pandas as pd
 import scanpy as sc
+sc.settings.n_jobs = -1
 import plotly.express as px
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
 from sklearn.preprocessing import StandardScaler
-
-# DOWNLOAD EXPRESSION MATRIX, CELL COORDINATES
-expr = pd.read_csv('../data/expression_annotated_corrected.csv')
-coords = pd.read_csv('../data/cell_coordinates.csv')
-
-tags_name = np.array(expr.columns)
-print("Shape of expression matrix:", expr.shape)
 
 # VARIABLES
 marker_to_cell = {
@@ -32,25 +26,94 @@ marker_to_cell = {
     "16": "Potentially plasma cells (CD138, cRARP+cCasp3)",
 } # complete according to umaps and dotplot
 
-# CLUSTERING 
-def clustering(expr):
+rem_list = ['Hoechst0', 'Hoechst1', 'Hoechst2', 'Hoechst3', 'Hoechst4', 
+                     'Hoechst5', 'Hoechst6', 'Hoechst7', 'Hoechst8', 'Hoechst9']
+
+def umap_image(adata, sup_text = ""):
+    """
+    Create umap images for 
+    """
+    sc.tl.umap(adata)
+    sc.pl.umap(adata, color = "Clusters", legend_loc = "on data", return_fig = True)
+    adata.write(f"../data/adata{sup_text}.h5ad")
+    plt.savefig(f"../images/umap_unlabeled{sup_text}", dpi = 300, bbox_inches = "tight")
+    plt.close()
+
+# PREPROCESSING
+def preprocess(expr, rem_list):
+    """
+    Performs scaling and cleaning of expression data
+    @expr(pd.DataFrame): table with expressios
+    @rem_list(list): list of variables to remove from adata
+    """
     # SCALING
     scaler = StandardScaler()
     expr_scale = scaler.fit_transform(expr)
 
-    # LEIDEN CLUSTERING 
-    expr_scale = pd.DataFrame(expr_scale, columns = tags_name)
+    # ADATA CONVERTION
     adata = sc.AnnData(X = expr_scale)
+    adata.var_names = expr.columns
+    print("Adata convertion complete")
 
-    sc.pp.neighbors(adata, n_pcs = 15)
-    sc.tl.leiden(adata, key_added = "Clusters")
+    # ERASING USELESS VARIABLES
+    adata = adata[:, ~adata.var_names.isin(rem_list)].copy()
+    print(f"Removed {len(rem_list)} Hoechst markers. New shape: {adata.shape}")
+    return adata
+
+# CLUSTERING 
+def clustering(adata):
+    """
+    Leiden clustering of adata based on expr data
+    If dim(expr)[0] > 1000000 better use clustering_big
+    @adata(scanpy object): object with expressions
+    """
+    # LEIDEN CLUSTERING 
+    sc.pp.pca(adata, n_comps = 15, use_highly_variable = False) 
+    sc.pp.neighbors(adata, use_rep = 'X_pca', n_pcs = 15)
+    print("Neighboring complete")
+    sc.tl.leiden(adata, key_added = "Clusters", flavor = "igraph")
     print(f"Number of clusters: {adata.obs['Clusters'].nunique()}")
 
-    sc.tl.umap(adata)  # Compute UMAP
-    sc.pl.umap(adata, color = "Clusters", legend_loc = "on data", return_fig = True)
-    adata.write("../data/adata_umap.h5ad")
-    plt.savefig("../images/umap_unlabeled", dpi = 300, bbox_inches = "tight")
-    plt.close()
+    umap_image(adata) # visualization of clustering
+
+def clustering_big(adata, sub_size = 100000):
+    """
+    Leiden clustering of big adata based on expr data
+    @adata(scanpy object): object with expressions
+    @sub_size(int): n_cells in sample to perform clusterization on
+    """
+    # VARIABLES
+    mean_distances = np.zeros(adata.n_obs)
+
+    # OBTAINING DENSITIES
+    sc.pp.neighbors(adata, n_neighbors = 15, use_rep = 'X')
+    distances = adata.obsp['distances']
+    for i in range(adata.n_obs):
+        neighbor_distances = distances[i].data
+        mean_distances[i] = np.mean(np.sort(neighbor_distances)[1:15])
+        if i % 100000 == 0:
+            print(f"Percent neighbors computed {i / adata.n_obs}")
+    # Unnormalized probabilities (reversed mean distance)
+    prob_abs = 1 / (mean_distances + 1e-8)
+    # Normalized probabilities
+    probs = prob_abs / np.sum(prob_abs)
+
+    # SAMPLING
+    sample_ind = np.random.choice(adata.n_obs,
+        size = sub_size, replace = False, p = probs)
+    adata_sample = adata[sample_ind].copy()
+    print("Subsample adata created")
+
+    # CLUSTERIZATION ON SUBSAMPLE
+    sc.pp.pca(adata_sample, n_comps = 15, use_highly_variable = False)  # Force PCA on all 30 markers
+    sc.pp.neighbors(adata_sample, use_rep = 'X_pca')
+    sc.tl.leiden(adata_sample, key_added = "Clusters")
+
+    umap_image(adata_sample, "_sample") # visualization of clustering on sample data
+
+    # CLUSTER TRANSFERING
+    sc.tl.ingest(adata, adata_sample, obs = 'Clusters', embedding_method = 'pca')
+    umap_image(adata, "_complete") # visualization of clustering on whole dataset
 
 # ANNOTATION
 def umap_stacked(adata):
@@ -60,7 +123,7 @@ def umap_stacked(adata):
     @adata: scanpy object
     """
     n_cols = 4  # Define the number of plots per row
-    n_plots = len(tags_name)
+    n_plots = len(adata.var_names)
     n_rows = (n_plots // n_cols) + (n_plots % n_cols > 0)  # Calculate number of rows needed
 
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))  # Adjust figure size
@@ -68,9 +131,9 @@ def umap_stacked(adata):
     # Flatten axes for easy iteration
     axes = axes.flatten()
 
-    for i, tag in enumerate(tags_name):
+    for i, tag in enumerate(adata.var_names):
         sc.pl.umap(adata, color = tag, vmin = 0, vmax = "p99", sort_order = False,
-                   frameon = False, cmap = "Reds",
+                   frameon = False, cmap = "#c46754",
                    show = False,  # Prevent immediate display
                    ax = axes[i])   # Assign to correct subplot
 
@@ -162,12 +225,18 @@ def spatial_plot(adata, coords, accent, title, output, type = "-1"):
     fig.write_image(output, scale = 2, engine = "kaleido")
 
 if __name__ == "__main__":
-    # Run the functions you want
-    # clustering(expr)
-    # umap_stacked(adata)
-    # genes_dot(adata, n_genes = 5)
-
+    # Comment after annotation
+    expr = pd.read_csv('../data/expression_annotated_corrected.csv')
+    coords = pd.read_csv('../data/cell_coordinates.csv')
+    print("Shape of expression matrix:", expr.shape)
+    adata = preprocess(expr, rem_list)
+    clustering(adata)
     adata = sc.read("../data/adata_umap.h5ad")
-    map_cells(adata, marker_to_cell)
-    spatial_plot(adata, coords, 'cluster', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
-    spatial_plot(adata, coords, 'cell', '3D Scatter - Cell Types', "../images/cell_types_3d.png")
+    umap_stacked(adata)
+    genes_dot(adata, n_genes = 5)
+
+    # Uncomment after annotation
+    # adata = sc.read("../data/adata_umap.h5ad")
+    # map_cells(adata, marker_to_cell)
+    # spatial_plot(adata, coords, 'cluster', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
+    # spatial_plot(adata, coords, 'cell', '3D Scatter - Cell Types', "../images/cell_types_3d.png")

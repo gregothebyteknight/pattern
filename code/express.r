@@ -3,7 +3,7 @@ library(pheatmap)
 
 # Downloading Data (expression matrix, table metal - marker)
 expr <- read.delim("../data/cell_intensities.csv", sep = ",")
-panel <- read.delim("../data/init/model201710_panel.csv", sep = ",", )
+panel <- read.delim("../data/init/model201710_panel.csv", sep = ",")
 
 chan_full <- colnames(expr)
 colnames(expr) <- panel[chan_full, "clean_target"]
