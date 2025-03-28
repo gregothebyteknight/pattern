@@ -53,7 +53,7 @@ def preprocess(expr, rem_list):
     # ADATA CONVERTION
     adata = sc.AnnData(X = expr_scale)
     adata.var_names = expr.columns
-    print("Adata convertion complete")
+    print("Adata convertion complete")# Downloading the spatial centered data of specific cell type
 
     # ERASING USELESS VARIABLES
     adata = adata[:, ~adata.var_names.isin(rem_list)].copy()

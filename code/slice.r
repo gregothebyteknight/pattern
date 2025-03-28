@@ -1,15 +1,15 @@
 
-source("./module.r")
-getwd() # wd need to be set explicitly, in terminal :(
-library(spatstat)
-library(viridis)    # for color palettes
-library(scales)     # for col_numeric
-library(fields)     # for image.plot (colorbar)
-library(RColorBrewer)
-library(Hmisc)
+# INSTALLING LIBRARIES
+library(Hmisc) # for weighted variance
+library(spatstat) # spatial statistics
 
+setwd(this.path::here())
+source("./module.r")
+
+# VARIABLES
 # Downloading the spatial centered data of specific cell type
 coords <- read.csv("../data/selected_cell_coordinates.csv")
+thr <- thr <- 1 / log10(nrow(coords)) # threshold for the PCF difference
 
 # COMPUTING PCF FOR SLICES
 # Creating a point pattern object
@@ -29,8 +29,8 @@ num_cells_list <- numeric(length = length(rolls) * length(pinches))
 
 # Loop over the roll angles
 index <- 1
-for (roll in rolls){
-  for (pinch in pinches){
+for (roll in rolls) {
+  for (pinch in pinches) {
     # Call the pc_for_slice function to compute pcf for slice of 3D dataframe
     result <- pc_for_slice(a = 0, b = pinch, g = roll,
                            cell_mat = cell_mat)
@@ -41,7 +41,7 @@ for (roll in rolls){
 }
 
 # COMPUTING TRUE SPATIAL PCF
-pcf_true <- spatstat.explore::pcf3est(true_pattern)
+pcf_true <- spatstat.explore::pcf3est(true_pattern, nrval = 64)
 
 # COMPUTING MEAN AND SD OF ALL 2D PCF
 # Define a shared r grid (using the r values from true PCF)
@@ -60,15 +60,22 @@ weighted_mean_pcf <- apply(pcf_matrix, 1, function(x) {
   weighted.mean(x, weights = num_cells_list, na.rm = TRUE)
 })
 weighted_sd_pcf <- apply(pcf_matrix, 1, function(x) {
-  sqrt(wtd.var(x, weights = num_cells_list, na.rm = TRUE))
+  sqrt(Hmisc::wtd.var(x, weights = num_cells_list, na.rm = TRUE))
 })
 
 # VISUALIZATION
+pcf_diffs <- diff(pcf_true$iso)
+
+# Find the first index where the difference falls below the threshold
+cutoff <- which(abs(pcf_diffs) < thr)[1] + 1
+r_sub <- pcf_true$r[cutoff]
+print(r_sub)
+
 # Plot the true PCF, then overlay the mean PCF with ±1 standard deviation
-png(filename = "../images/pc_mean_sd.png", width = 800, height = 600)
+png(filename = "../images/pc_mean.png", width = 800, height = 600)
 
 y_max <- max(max(pcf_true$iso), max(weighted_mean_pcf + weighted_sd_pcf))
-plot(pcf_true, col = "#84a98c", lwd = 2, ylim = c(0, y_max),
+plot(pcf_true, col = "#84a98c", lwd = 2, ylim = c(0, y_max), xlim = c(0, r_sub),
      xlab = "r (Distance)", ylab = "pcf", main = "Mean PCF with ±1 SD")
 
 # Addition of dashed lines for mean ± SD
@@ -87,7 +94,5 @@ lines(r_grid, weighted_mean_pcf, type = "l", lwd = 2, col = "#7373c9")
 dev.off()
 
 dir.create("../logs", showWarnings = FALSE)
-writeLines(c(paste("Executed Script: slice.r"),
-             capture.output(sessionInfo())),
-           file.path("../logs",
-                     paste0("logs_slice_", Sys.Date(), ".txt")))
+writeLines(c(paste("Executed Script: slice.r"), capture.output(sessionInfo())),
+           file.path("../logs", paste0("logs_slice_", Sys.Date(), ".txt")))

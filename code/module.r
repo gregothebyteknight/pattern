@@ -1,8 +1,7 @@
 # Installing the libraries
-library(tidyverse)
-library(spatstat)
-library(magrittr)
-library(psych)
+library(tidyverse) # data manipulation
+library(spatstat) # spatial statistics
+library(dplyr) # data manipulation with pipes
 
 # Define the ranges for each coordinate
 pp_box <- function(mat) {
@@ -27,25 +26,26 @@ rotation <- function(a, b, g) {
    a(alpha of yaw): angle of rotation about the z-axis
    b(beta of pinch): angle of rotation about the y-axis
    g(gamma of roll): angle of rotation about the x-axis"
+  ca <- cos(a) # precompute cos and sin values
+  sa <- sin(a)
+  cb <- cos(b)
+  sb <- sin(b)
+  cg <- cos(g)
+  sg <- sin(g)
+
   matrix(c(
-           cos(a) * cos(b), # first row
-           cos(a) * sin(b) * sin(g) - sin(a) * cos(g),
-           cos(a) * sin(b) * cos(g) + sin(a) * sin(g),
-           sin(a) * cos(b), # second row
-           sin(a) * sin(b) * sin(g) + cos(a) * cos(g),
-           sin(a) * sin(b) * cos(g) - cos(a) * sin(g),
-           -sin(b), # third row
-           cos(b) * sin(g),
-           cos(b) * cos(g)),
-  nrow = 3, byrow = TRUE)
+    ca * cb, ca * sb * sg - sa * cg, ca * sb * cg + sa * sg,
+    sa * cb, sa * sb * sg + ca * cg, sa * sb * cg - ca * sg,
+    -sb, cb * sg, cb * cg
+  ), nrow = 3, byrow = TRUE)
 }
 
 # Declare the slice function
 slice <- function(a, b, c, slice_size, mut_frame) {
   "Compute the slice of the 3D point pattern.
    a, b, c: the normal vector of the slice (d = 0)
-   slice_size: the depth of the slice
-   mut_frame: the 3D point dataframe undergo transformation"
+   slice_size: the thickness of the slice
+   mut_frame: the 3D point dataframe which undergo transformation"
   value <- a * mut_frame[, 1] + b * mut_frame[, 2] + c * mut_frame[, 3]
   # Return a logical vector: TRUE if value is within the slice, FALSE otherwise
   value >= -slice_size / 2 & value <= slice_size / 2
@@ -106,10 +106,10 @@ angle_analysis <- function(cell_mat, valid_pairs) {
   # Create a slice of the 3D point pattern
   slices <- mut_frame %>%
     filter(slice(0, 0, 1, 10, as.matrix(mut_frame[, 1:3])))
-  print(sprintf("Number of cells in slice: %s", dim(slices)[1]))
+  print(sprintf("Number of cells in selected slice: %s", dim(slices)[1]))
 
-  png(filename = "../images/pcplot.png")
+  png(filename = "../images/pc_angle_analysis.png")
   plot(slices[, "X"], slices[, "Y"], lwd = 2,
        xlab = "X axis", ylab = "Y axis",
-       main = "Pair Correlation Functions for Varying Angles")
+       main = "Slice of cell with the closest angle sum")
 }
