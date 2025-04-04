@@ -10,7 +10,7 @@ library(RColorBrewer) # for color palettes
 
 # VARIABLES
 # Downloading the spatial centered data of specific cell type
-coords <- read.csv("../data/selected_cell_coordinates.csv")
+coords <- read.csv("../data/sci_embryo/selected_cell_coordinates.csv")
 thr <- 0.01 / log10(nrow(coords)) # threshold for the PCF difference
 
 # COMPUTING PCF FOR SLICES
@@ -21,13 +21,14 @@ true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
                                    cell_mat[, 3], pp_box(cell_mat))
 
 # Define a vector of angles
-rolls <- runif(n = 10, min = 0, max = 2 * pi)
-pinches <- runif(n = 10, min = 0, max = 2 * pi)
-# yaws <- runif(n = 30, min = 0, max = 2 * pi) just in case
+n_iter <- 10
+rolls <- runif(n = n_iter, min = 0, max = 2 * pi)
+pinches <- runif(n = n_iter, min = 0, max = 2 * pi)
+# yaws <- runif(n = n_iter, min = 0, max = 2 * pi) just in case
 
 # Create an empty lists to store the pcf objects and number of cells
-pcf_list <- vector("list", length = length(rolls) * length(pinches))
-num_cells_list <- numeric(length = length(rolls) * length(pinches))
+pcf_list <- vector("list", length = n_iter^2)
+num_cells_list <- numeric(length = n_iter^2)
 valid_pairs <- matrix(nrow = 0, ncol = 2)  # column 1 = roll, column 2 = pinch
 n_cell_range <- c(0, 100000) # set according to the pcf plot
 
@@ -54,18 +55,10 @@ for (roll in rolls) {
 pcf_true <- spatstat.explore::pcf3est(true_pattern)
 
 # PLOTTING THE PCF CURVES
-pcf_diffs <- diff(pcf_true$iso)
-
-# Find the first index where the difference falls below the threshold
-cutoff <- which(abs(pcf_diffs) < thr)[1] + 1
-r_sub <- pcf_true$r[cutoff]
-print(r_sub)
-
 # Plot the true PCF
 png(filename = "../images/pc_total.png")
-plot(pcf_true,
-     main = "Pair Correlation Functions for Varying Angles",
-     xlab = "r (Distance)", ylab = "pcf", col = "#84a98c", xlim = c(0, r_sub))
+plot(pcf_true, main = "Pair Correlation Functions for Varying Angles",
+     xlab = "r (Distance)", ylab = "pcf", col = "#84a98c")
 
 # Prepare continuous color panel
 col_fun <- scales::col_numeric(palette = viridis::cividis(100),
@@ -98,3 +91,7 @@ writeLines(c(paste("Executed Script: main.r"), capture.output(sessionInfo())),
 
 # Slice analysis
 angle_analysis(cell_mat, valid_pairs) # only when n_cell_range is set
+
+# Print optimal r max for slice.r script
+max_index <- which.max(num_cells_list)
+print(sprintf("Optimal max_r: %s", max(pcf_list[[max_index]]$r)))

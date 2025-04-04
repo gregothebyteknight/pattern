@@ -1,15 +1,19 @@
 
-# INSTALLING LIBRARIES
+# INSTALLING LIBRARIES & ARGUMENTS PARSING
 library(Hmisc) # for weighted variance
 library(spatstat) # spatial statistics
 
 setwd(this.path::here())
 source("./module.r")
 
-# VARIABLES
+args <- commandArgs(TRUE) # parsing the command line arguments
+r_max <- if (length(args) == 0) NULL else as.numeric(args[1])
+r_grid <- if (!is.null(r_max)) seq(0, r_max, length.out = 128) else NULL
+
+# VARIABLES' DECLARATION
 # Downloading the spatial centered data of specific cell type
-coords <- read.csv("../data/selected_cell_coordinates.csv")
-thr <- thr <- 1 / log10(nrow(coords)) # threshold for the PCF difference
+coords <- read.csv("../data/sci_embryo/selected_cell_coordinates.csv")
+thr <- 1 / log10(nrow(coords)) # threshold for the PCF difference ! RETHINK
 
 # COMPUTING PCF FOR SLICES
 # Creating a point pattern object
@@ -19,12 +23,13 @@ true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
                                    cell_mat[, 3], pp_box(cell_mat))
 
 # Define a vector of angles
-rolls <- runif(n = 30, min = 0, max = 2 * pi)
-pinches <- runif(n = 30, min = 0, max = 2 * pi)
-# yaws <- runif(n = 30, min = 0, max = 2 * pi) have no effect
+n_iter <- 30
+rolls <- runif(n = n_iter, min = 0, max = 2 * pi)
+pinches <- runif(n = n_iter, min = 0, max = 2 * pi)
+# yaws <- runif(n = n_iter, min = 0, max = 2 * pi) have no effect
 
 # Create an empty lists to store the pcf objects and number of cells
-pcf_list <- vector("list", length = length(rolls) * length(pinches))
+pcf_mat <- matrix(ncol = n_iter^2, nrow = 128) # locations of dots
 num_cells_list <- numeric(length = length(rolls) * length(pinches))
 
 # Loop over the roll angles
@@ -33,49 +38,31 @@ for (roll in rolls) {
   for (pinch in pinches) {
     # Call the pc_for_slice function to compute pcf for slice of 3D dataframe
     result <- pc_for_slice(a = 0, b = pinch, g = roll,
-                           cell_mat = cell_mat)
-    pcf_list[[index]] <- result$pcf
+                           cell_mat = cell_mat, r_grid = r_grid)
+    pcf_mat[, index] <- result$pcf$pcf
     num_cells_list[index] <- result$num_cells
     index <- index + 1
   }
 }
 
 # COMPUTING TRUE SPATIAL PCF
-pcf_true <- spatstat.explore::pcf3est(true_pattern, nrval = 64)
+pcf_true <- spatstat.explore::pcf3est(true_pattern)
 
 # COMPUTING MEAN AND SD OF ALL 2D PCF
-# Define a shared r grid (using the r values from true PCF)
-r_grid <- pcf_true$r
-
-# Function to interpolate a PCF object onto the r grid
-interp_pcf <- function(pcf_list, r_grid) {
-  approx(x = pcf_list$r, y = pcf_list$pcf, xout = r_grid, rule = 2)$y
-}
-
-# Interpolate each PCF in your list onto r_grid
-pcf_matrix <- sapply(pcf_list, interp_pcf, r_grid = r_grid)
-
 # Compute the mean and SD across all curves at each common r value
-weighted_mean_pcf <- apply(pcf_matrix, 1, function(x) {
+weighted_mean_pcf <- apply(pcf_mat, 1, function(x) {
   weighted.mean(x, weights = num_cells_list, na.rm = TRUE)
 })
-weighted_sd_pcf <- apply(pcf_matrix, 1, function(x) {
+weighted_sd_pcf <- apply(pcf_mat, 1, function(x) {
   sqrt(Hmisc::wtd.var(x, weights = num_cells_list, na.rm = TRUE))
 })
 
 # VISUALIZATION
-pcf_diffs <- diff(pcf_true$iso)
-
-# Find the first index where the difference falls below the threshold
-cutoff <- which(abs(pcf_diffs) < thr)[1] + 1
-r_sub <- pcf_true$r[cutoff]
-print(r_sub)
-
 # Plot the true PCF, then overlay the mean PCF with ±1 standard deviation
 png(filename = "../images/pc_mean.png", width = 800, height = 600)
 
 y_max <- max(max(pcf_true$iso), max(weighted_mean_pcf + weighted_sd_pcf))
-plot(pcf_true, col = "#84a98c", lwd = 2, ylim = c(0, y_max), xlim = c(0, r_sub),
+plot(pcf_true, col = "#84a98c", lwd = 2,
      xlab = "r (Distance)", ylab = "pcf", main = "Mean PCF with ±1 SD")
 
 # Addition of dashed lines for mean ± SD
