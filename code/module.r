@@ -67,21 +67,20 @@ pc_for_slice <- function(a, b, g, cell_mat, r_grid = NULL) {
     filter(slice(0, 0, 1, 10, as.matrix(mut_frame[, 1:3])))
   print(sprintf("Number of cells in slice: %s", dim(slices)[1]))
   if (dim(slices)[1] <= 1) {
-    r_grid <- if (is.null(r_grid)) runif(n = 128, min = 0, max = 10)
-    return(list(pcf = data.frame(r = r_grid,
-                                 pcf = rep(NA, 128)), num_cells = NA))
+    return(list(pcf = data.frame(r = runif(n = 513, min = 0, max = 10),
+                                 pcf = rep(NA, 513)), num_cells = NA))
   }
   # Create a 2D point pattern object
   pp_obj <- spatstat.geom::ppp(slices$X, slices$Y,
                                pp_box(as.matrix(slices[, 1:2])))
-  # Compute the 2D K-Ripley function
-  k <- spatstat.explore::Kest(pp_obj, r = r_grid)
-  pcf <- spatstat.explore::pcf.fv(k, method = "b", spar = 0.5)
+  # Compute the 2D PCF function
+  k <- spatstat.explore::Kest(pp_obj)
+  pcf <- spatstat.explore::pcf.fv(k, method = "b", spar = 0.5, r = r_grid)
 
   list(pcf = pcf, num_cells = dim(slices)[1]) # return pcf and number of cells
 }
 
-angle_analysis <- function(cell_mat, valid_pairs) {
+angle_analysis <- function(cell_mat, valid_pairs, cell_type) {
   "Image slice of point pattern corresponds to the 
   selected n_cell_range
   cell_mat: the 3D pint matrix
@@ -108,7 +107,7 @@ angle_analysis <- function(cell_mat, valid_pairs) {
     filter(slice(0, 0, 1, 10, as.matrix(mut_frame[, 1:3])))
   print(sprintf("Number of cells in selected slice: %s", dim(slices)[1]))
 
-  png(filename = "../images/pc_angle_analysis.png")
+  png(filename = sprintf("../images/angle_%s.png", cell_type))
   plot(slices[, "X"], slices[, "Y"], lwd = 2,
        xlab = "X axis", ylab = "Y axis",
        main = "Slice of cell with the closest angle sum")

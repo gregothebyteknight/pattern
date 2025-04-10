@@ -13,30 +13,30 @@ from sklearn.preprocessing import StandardScaler
 
 # VARIABLES
 marker_to_cell = {
-    "5": "Cytotoxic T cells (CD8a, CD3, CD45)",
-    "18": "B cells (CD20)",
-    "19": "Macrophages (CD68)",
-    "12": "Basal layer epithelium (CK5, SMA, CK14)",
-    "14": "Endothelium (vWF+CD31, Vimentin)",
-    "8": "Carcinoma (CK19, Her2, CK7, panCK)",
-    "4": "Potentially carcinoma (CK19, Her2, CK7, panCK)",
-    "21": "Potentially neutrophiles (MPO, pS6, CD44)",
-    "22": "Potentially neutrophiles (MPO, pS6, CD44)",
-    "9": "Fibroblasts (CollagenI)",
-    "16": "Potentially plasma cells (CD138, cRARP+cCasp3)",
-} # complete according to umaps and dotplot
+    "7": "Cytotoxic T cells (CD8a)",
+    "2": "B cells (CD20)",
+    "14": "Myofibroblasts (SMA, Collagen1, Vimentin)",
+    "5": "Vascular endothelial or stromal cells (CD36, CD31, Collagen, Vimentin)",
+    "13": "Fibroblasts (Fibronectin, Collagen)",
+    "15": "Granulocytic myeloid cells (CD15, CD68)",
+    "0": "Helper T cells (CD3, CD4, CD45RO, CD44)",
+    "6": "M2-like macrophages (CD163, CD206, CD68)",
+    "18": "Lymphatic endothelial cells (LYVE1, VEGF)",
+    "9": "Vascular smooth muscle cells or pericytes (CD31, Vimentin, SMA)",
+    "3": "Tumor epithelial cells (Her2, PanCK, E+P Cadherin; cPARP-cCasp+)"
+} # complete according to tsne stack and dotplot
 
 rem_list = ['Hoechst0', 'Hoechst1', 'Hoechst2', 'Hoechst3', 'Hoechst4', 
                      'Hoechst5', 'Hoechst6', 'Hoechst7', 'Hoechst8', 'Hoechst9']
 
-def umap_image(adata, sup_text = ""):
+def tsne_image(adata):
     """
-    Create umap images for 
+    Create tsne images for adat object
+    @adata(scanpy object): object with expressions
     """
-    sc.tl.umap(adata)
-    sc.pl.umap(adata, color = "Clusters", legend_loc = "on data", return_fig = True)
-    adata.write(f"../data/adata{sup_text}.h5ad")
-    plt.savefig(f"../images/umap_unlabeled{sup_text}", dpi = 300, bbox_inches = "tight")
+    sc.tl.tsne(adata)
+    sc.pl.tsne(adata, color = "Clusters", legend_loc = "on data", return_fig = True)
+    plt.savefig("../images/tsne_unlabeled", dpi = 300, bbox_inches = "tight")
     plt.close()
 
 # PREPROCESSING
@@ -67,14 +67,19 @@ def clustering(adata):
     If dim(expr)[0] > 1000000 better use clustering_big
     @adata(scanpy object): object with expressions
     """
-    # LEIDEN CLUSTERING 
-    sc.pp.pca(adata, n_comps = 15, use_highly_variable = False) 
-    sc.pp.neighbors(adata, use_rep = 'X_pca', n_pcs = 15)
+    # LEIDEN CLUSTERING
+    n_comps = 50 if adata.n_vars >= 50 else adata.n_vars - 1
+    sc.pp.pca(adata, n_comps = n_comps, use_highly_variable = False, svd_solver = "auto")
+    sc.pl.pca_variance_ratio(adata, log = True, show = False)
+    plt.savefig("../images/pca_variance.png")
+    plt.close()
+
+    sc.pp.neighbors(adata, use_rep = 'X_pca', n_pcs = 23, n_neighbors = 50)
     print("Neighboring complete")
-    sc.tl.leiden(adata, key_added = "Clusters", flavor = "igraph")
+    sc.tl.leiden(adata, key_added = "Clusters", flavor = "igraph", resolution = 1)
     print(f"Number of clusters: {adata.obs['Clusters'].nunique()}")
 
-    umap_image(adata) # visualization of clustering
+    tsne_image(adata) # visualization of clustering
 
 def clustering_big(adata, sub_size = 100000):
     """
@@ -109,14 +114,14 @@ def clustering_big(adata, sub_size = 100000):
     sc.pp.neighbors(adata_sample, use_rep = 'X_pca')
     sc.tl.leiden(adata_sample, key_added = "Clusters")
 
-    umap_image(adata_sample, "_sample") # visualization of clustering on sample data
+    tsne_image(adata_sample, "_sample") # visualization of clustering on sample data
 
     # CLUSTER TRANSFERING
     sc.tl.ingest(adata, adata_sample, obs = 'Clusters', embedding_method = 'pca')
-    umap_image(adata, "_complete") # visualization of clustering on whole dataset
+    tsne_image(adata, "_complete") # visualization of clustering on whole dataset
 
 # ANNOTATION
-def umap_stacked(adata):
+def tsne_stacked(adata):
     """
     Creates stacked image with plot corresponding
     to the expression level of certain marker
@@ -132,8 +137,8 @@ def umap_stacked(adata):
     axes = axes.flatten()
 
     for i, tag in enumerate(adata.var_names):
-        sc.pl.umap(adata, color = tag, vmin = 0, vmax = "p99", sort_order = False,
-                   frameon = False, cmap = "#c46754",
+        sc.pl.tsne(adata, color = tag, vmin = 0, vmax = "p99", sort_order = False,
+                   frameon = False, cmap = "cividis",
                    show = False,  # Prevent immediate display
                    ax = axes[i])   # Assign to correct subplot
 
@@ -142,30 +147,34 @@ def umap_stacked(adata):
         fig.delaxes(axes[j])
 
     plt.tight_layout()
-    plt.savefig("../images/umap_stacked.png", dpi = 300, bbox_inches = "tight")  # Save the figure
+    plt.savefig("../images/tsne_stacked.png", dpi = 300, bbox_inches = "tight")  # Save the figure
     plt.close()
 
-def genes_dot(adata, n_genes = 5):
+def annotate(adata, n_genes = 3):
     """
-    Creates top n_genes dotplot
+    Helps with annotation by producing dot and violin plot
     @adata: scanpy object
     @n_genes: top n genes to visualize
     """
     sc.tl.rank_genes_groups(adata, groupby = "Clusters", method = "wilcoxon")
+
     fig = sc.pl.rank_genes_groups_dotplot(adata, n_genes = n_genes, return_fig = True)
     fig.savefig("../images/ranked_genes_dotplot.png", dpi = 300, bbox_inches = "tight")
+    plt.close()
+
+    fig = sc.pl.rank_genes_groups_stacked_violin(adata, groupby = 'Clusters', n_genes = n_genes, return_fig = True)
+    fig.savefig("../images/ranked_genes_violin.png", dpi = 300, bbox_inches = "tight")
     plt.close()
 
 def map_cells(adata, marker_to_cell):
     """
     Performs manual annotation based on cells cluster location
-    Functions `genes_dot` and `umap_stacked` should help in annotation
+    Functions `genes_dot` and `tsne_stacked` should help in annotation
     @adata: scanpy object
     @marker_to_cell(dict): mapping from cell cluster # to prospective cell type
     """
     adata.obs["manual_celltype_annotation"] = adata.obs["Clusters"].map(marker_to_cell)
-    sc.pl.umap(adata, color = ["manual_celltype_annotation"], return_fig = True)
-    adata.write("../data/adata_umap.h5ad")
+    sc.pl.tsne(adata, color = ["manual_celltype_annotation"], return_fig = True)
     plt.savefig("../images/cell_types.png", dpi = 300, bbox_inches = "tight")
     plt.close()
 
@@ -199,9 +208,9 @@ def spatial_cells(adata, coords):
 
     # Create a window for visualization in `spatial_plot` function
     scene = dict(
-        xaxis = dict(range = [0, 1400]),
-        yaxis = dict(range = [0, 1400]),
-        zaxis = dict(range = [0, 1400])
+        xaxis = dict(range = [coords['x'].min(), coords['x'].max()]),
+        yaxis = dict(range = [coords['y'].min(), coords['y'].max()]),
+        zaxis = dict(range = [coords['z'].min() - 30, coords['z'].max() + 30])
         )
     return cell_df, scene
 
@@ -227,16 +236,19 @@ def spatial_plot(adata, coords, accent, title, output, type = "-1"):
 if __name__ == "__main__":
     # Comment after annotation
     expr = pd.read_csv('../data/expression_annotated_corrected.csv')
-    coords = pd.read_csv('../data/cell_coordinates.csv')
+
     print("Shape of expression matrix:", expr.shape)
     adata = preprocess(expr, rem_list)
     clustering(adata)
-    adata = sc.read("../data/adata_umap.h5ad")
-    umap_stacked(adata)
-    genes_dot(adata, n_genes = 5)
+ 
+    tsne_stacked(adata)
+    annotate(adata, n_genes = 5)
+    adata.write("../data/adata.h5ad")
 
     # Uncomment after annotation
-    # adata = sc.read("../data/adata_umap.h5ad")
+    # adata = sc.read("../data/adata.h5ad")
+    # coords = pd.read_csv('../data/cell_coordinates.csv')
+    
     # map_cells(adata, marker_to_cell)
     # spatial_plot(adata, coords, 'cluster', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
     # spatial_plot(adata, coords, 'cell', '3D Scatter - Cell Types', "../images/cell_types_3d.png")

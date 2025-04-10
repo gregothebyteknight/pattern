@@ -11,16 +11,16 @@ from skimage.io import imread
 from pathlib import Path
 
 # DOWNLOADING DATA AND LIST VARIABLES
-masks = imread("../data/init/full_mask_final_segmentation_hwatershed_500.00_90%.tif")
+masks = imread("../data/init/full_mask_final_segmentation_hwatershed_bg500_90%.tif")
 print("Shape of the masks before:", masks.shape)
 masks = np.swapaxes(np.swapaxes(masks, 0, 1), 1, 2) # swapping x and y axes, then z and y axes
 print("Shape of the masks after:", masks.shape)
 
-fold_list = [f.path for f in os.scandir("../data/init") if f.is_dir()]
+fold_list = [f.path for f in os.scandir("../data/init/") if f.is_dir()]
 n_chan = len(fold_list) # number of channels == n of cell markers
 chan_list = [] # list of channel names
 
-x_dim, y_dim, z_dim = 1655, 1604, 152 # set according to masks.shape
+x_dim, y_dim, z_dim = 1687, 1694, 92 # set according to masks.shape
 image = np.zeros((x_dim, y_dim, z_dim, n_chan), dtype = np.uint16) # with channels dim added
 
 def reshape_image(fold_list):
