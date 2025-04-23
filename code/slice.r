@@ -1,31 +1,32 @@
 
 # INSTALLING LIBRARIES & ARGUMENTS PARSING
-library(Hmisc) # for weighted variance
 library(spatstat) # spatial statistics
+library(tibble) # dataframes
 
 setwd(this.path::here())
 source("./module.r")
+source("./visual.r")
 
 # PARSING ARGUMENTS
 args <- commandArgs(TRUE) # parsing the command line arguments
 if (length(args) < 2) {
   stop("Requires 2 arguments: r_max and path to the file")
 }
-
 r_grid <- seq(0, as.numeric(args[2]), length.out = 513)
 
 # VARIABLES' DECLARATION
 # Downloading the spatial centered data of specific cell type
 coords <- read.csv(args[1]) # using the path argument from command line
-
-# COMPUTING PCF FOR SLICES
-# Creating a point pattern object
-cell_mat <- as.matrix(coords[, 1:3])
 cell_type <- coords[1, "cell"] # reading the cell type
+dataset_name <- basename(dirname(args[1])) # reading the dataset name
+cell_mat <- as.matrix(coords[, 1:3])
 
+# COMPUTING TRUE SPATIAL PCF
 true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
                                    cell_mat[, 3], pp_box(cell_mat))
+pcf_true <- spatstat.explore::pcf3est(true_pattern)
 
+# COMPUTING PCF FOR SLICES
 # Define a vector of angles
 n_iter <- 30
 rolls <- runif(n = n_iter, min = 0, max = 2 * pi)
@@ -48,42 +49,21 @@ for (roll in rolls) {
   }
 }
 
-# COMPUTING TRUE SPATIAL PCF
-pcf_true <- spatstat.explore::pcf3est(true_pattern)
-
-# COMPUTING MEAN AND SD OF ALL 2D PCF
-# Compute the mean and SD across all curves at each common r value
-weighted_mean_pcf <- apply(pcf_mat, 1, function(x) {
-  weighted.mean(x, weights = num_cells_list, na.rm = TRUE)
-})
-weighted_sd_pcf <- apply(pcf_mat, 1, function(x) {
-  sqrt(Hmisc::wtd.var(x, weights = num_cells_list, na.rm = TRUE))
-})
-
 # VISUALIZATION
-# Plot the true PCF, then overlay the mean PCF with ±1 standard deviation
-png(filename = sprintf("../images/pc_mean_%s.png", cell_type),
-    width = 800, height = 600)
+mean_pcf(pcf_true, r_grid, pcf_mat, cell_type, num_cells_list) # module visual.r
 
-y_max <- max(max(pcf_true$iso), max(weighted_mean_pcf + weighted_sd_pcf))
-plot(pcf_true, col = "#84a98c", lwd = 2,
-     xlab = "r (Distance)", ylab = "pcf", main = "Mean PCF with ±1 SD")
-
-# Addition of dashed lines for mean ± SD
-lines(r_grid, weighted_mean_pcf + weighted_sd_pcf, col = "gray", lty = 2)
-lines(r_grid, weighted_mean_pcf - weighted_sd_pcf, col = "gray", lty = 2)
-
-# Addition of a shaded region between mean + SD and mean - SD
-polygon(c(r_grid, rev(r_grid)),
-        c(weighted_mean_pcf + weighted_sd_pcf,
-          rev(weighted_mean_pcf - weighted_sd_pcf)),
-        col = rgb(0.1, 0.1, 0.8, 0.2), border = NA)
-
-# Additiom of the true PCF for reference
-lines(r_grid, weighted_mean_pcf, type = "l", lwd = 2, col = "#7373c9")
-
-dev.off()
-
+# ARCHIVISATION
 dir.create("../logs", showWarnings = FALSE)
 writeLines(c(paste("Executed Script: slice.r"), capture.output(sessionInfo())),
            file.path("../logs", paste0("logs_slice_", Sys.Date(), ".txt")))
+
+# Final edits
+pcf_plain <- data.frame(r = r_grid, pcf_mat, check.names = FALSE)
+colnames(pcf_plain)[-1] <- paste0("pcf_", seq_len(ncol(pcf_mat)))
+
+pcf_space <- tibble(r = pcf_true$r, pcf = pcf_true$iso)
+
+utils::write.csv(pcf_plain, sprintf("../data/pcf_temp/pcf_plain_%s.csv",
+                                    cell_type), row.names = FALSE)
+utils::write.csv(pcf_space, sprintf("../data/pcf_temp/pcf_space_%s.csv",
+                                    cell_type), row.names = FALSE)

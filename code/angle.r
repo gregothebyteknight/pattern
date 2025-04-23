@@ -2,11 +2,9 @@
 # INSTALLING PACKAGES
 setwd(this.path::here())
 source("module.r")
+source("visual.r")
 
 library(spatstat) # for spatial statistics
-library(scales) # for col_numeric
-library(fields) # for image.plot (colorbar)
-library(RColorBrewer) # for color palettes
 
 # PARSING ARGUMENTS
 args <- commandArgs(TRUE)
@@ -18,14 +16,18 @@ if (length(args) < 1) {
 # Downloading the spatial centered data of specific cell type
 coords <- read.csv(args[1]) # parsing the path argument
 cell_type <- coords[1, "cell"] # reading the cell type
+data_name <- basename(dirname(args[1])) # technology name
+ce_tbl <- tibble(data = character(), cell = character(),
+  dim = character(), num = integer(), ce = double()
+) # empty table for storing the ce values
+cell_mat <- as.matrix(coords[, 1:3]) # 3D point pattern matrix
 
-# COMPUTING PCF FOR SLICES
-# Creating a point pattern object
-cell_mat <- as.matrix(coords[, 1:3])
-
+# COMPUTING TRUE SPATIAL PCF
 true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
                                    cell_mat[, 3], pp_box(cell_mat))
+pcf_true <- spatstat.explore::pcf3est(true_pattern)
 
+# COMPUTING PCF FOR SLICES
 # Define a vector of angles
 n_iter <- 10
 rolls <- runif(n = n_iter, min = 0, max = 2 * pi)
@@ -46,7 +48,14 @@ for (roll in rolls) {
     result <- pc_for_slice(a = 0, b = pinch, g = roll, cell_mat)
     pcf_list[[index]] <- result$pcf
     num_cells_list[index] <- result$num_cells
-    if (!is.na(result$num_cells)) {
+
+    if (!is.na(result$num_cells)  && result$num_cells > 1) {
+      ce_tbl <- bind_rows(ce_tbl,
+        tibble(data = data_name, cell = cell_type,
+          dim = "plane", num = result$num_cells, ce = result$ce
+        )
+      )
+
       if ((n_cell_range[1] <= result$num_cells) &&
             (result$num_cells <= n_cell_range[2])) {
         valid_pairs <- rbind(valid_pairs, c(roll, pinch))
@@ -56,42 +65,25 @@ for (roll in rolls) {
   }
 }
 
-# COMPUTING TRUE SPATIAL PCF
-pcf_true <- spatstat.explore::pcf3est(true_pattern)
+# Add space data to the ce table
+ce_tbl <- bind_rows(ce_tbl,
+  tibble(data = data_name, cell = cell_type, dim = "space",
+    num = nrow(coords), ce = ce_idx(coords[, c("x", "y", "z")])
+  )
+)
 
 # PLOTTING THE PCF CURVES
-# Plot the true PCF
-png(filename = sprintf("../images/pc_total_%s.png", cell_type))
-plot(pcf_true, main = "Pair Correlation Functions for Varying Angles",
-     xlab = "r (Distance)", ylab = "pcf", col = "#84a98c")
+cumul_pcf(pcf_true, pcf_list, cell_type, num_cells_list)
 
-# Prepare continuous color panel
-col_fun <- scales::col_numeric(palette = viridis::cividis(100),
-                               domain = range(num_cells_list, na.rm = TRUE))
-curve_colors <- col_fun(num_cells_list)
-
-# Overlay the rest of the pcf curves
-for (i in seq_along(pcf_list)) {
-  points(pcf_list[[i]]$r, pcf_list[[i]]$pcf, type = "l", col = curve_colors[i])
-}
-
-# Adjust zlim if num_cells_list has no variation
-z_range <- range(num_cells_list, na.rm = TRUE)
-if (z_range[1] == z_range[2]) {
-  z_range <- z_range + c(-1, 1)  # add a small margin
-}
-
-# Saving the plot and session info
-fields::image.plot(legend.only = TRUE, zlim = z_range,
-                   col = viridis::cividis(100), legend.lab = "Number of cells",
-                   legend.line = 2, legend.mar = 3)
-dev.off()
+# SAVING THE FILES
 
 dir.create("../logs", showWarnings = FALSE)
 writeLines(c(paste("Executed Script: angle.r"), capture.output(sessionInfo())),
            file.path("../logs", paste0("logs_angle_", Sys.Date(), ".txt")))
+utils::write.csv(ce_tbl, sprintf("../data/ce_temp/ce_tbl_%s.csv",
+                                 cell_type), row.names = FALSE)
 
-# Slice analysis
+# SLICE ANALYSIS
 if (n_cell_range[1] != -1) angle_analysis(cell_mat, valid_pairs, cell_type)
 
 # Print optimal r max for slice.r script

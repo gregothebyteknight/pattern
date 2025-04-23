@@ -13,17 +13,18 @@ from sklearn.preprocessing import StandardScaler
 
 # VARIABLES
 marker_to_cell = {
-    "7": "Cytotoxic T cells (CD8a)",
-    "2": "B cells (CD20)",
-    "14": "Myofibroblasts (SMA, Collagen1, Vimentin)",
-    "5": "Vascular endothelial or stromal cells (CD36, CD31, Collagen, Vimentin)",
-    "13": "Fibroblasts (Fibronectin, Collagen)",
-    "15": "Granulocytic myeloid cells (CD15, CD68)",
-    "0": "Helper T cells (CD3, CD4, CD45RO, CD44)",
-    "6": "M2-like macrophages (CD163, CD206, CD68)",
-    "18": "Lymphatic endothelial cells (LYVE1, VEGF)",
-    "9": "Vascular smooth muscle cells or pericytes (CD31, Vimentin, SMA)",
-    "3": "Tumor epithelial cells (Her2, PanCK, E+P Cadherin; cPARP-cCasp+)"
+    "6": "Basal or myoepithelial (CK5, SMA, some Vimentin)",
+    "19": "B (CD20)",
+    "8": "Endothelial with mesenchymal features (vWF+CD31, Vimentin, some SMA, Collagen)",
+    "5": "Smooth muscle (SMA, minimal Vimentin and Collagen)",
+    "20": "ECM-producing stromal (CollagenI, lacking Vimentin, SMA)",
+    "21": "Predominanly Cytotoxic T (CD45+, 60% CD8a)",
+    "17": "Apoptotic macrophages (cPARP+Casp3, CD68, some CD45)",
+    "24": "T (CD3)",
+    "7": "Proliferating (Ki-67)",
+    "4": "Mitotic (Phospho-H3)",
+    "11": "Tumor epithelial (some Her2, panCK, CK19, CK7, CK8or18, some EorP Cadherin)",
+    "3": "Tumor epithelial (some Her2, pS6, EorP Cadherin, CAIX)"
 } # complete according to tsne stack and dotplot
 
 rem_list = ['Hoechst0', 'Hoechst1', 'Hoechst2', 'Hoechst3', 'Hoechst4', 
@@ -74,9 +75,9 @@ def clustering(adata):
     plt.savefig("../images/pca_variance.png")
     plt.close()
 
-    sc.pp.neighbors(adata, use_rep = 'X_pca', n_pcs = 23, n_neighbors = 50)
+    sc.pp.neighbors(adata, use_rep = 'X_pca', n_pcs = 16, n_neighbors = 30)
     print("Neighboring complete")
-    sc.tl.leiden(adata, key_added = "Clusters", flavor = "igraph", resolution = 1)
+    sc.tl.leiden(adata, key_added = "Clusters", flavor = "igraph", resolution = 1.3)
     print(f"Number of clusters: {adata.obs['Clusters'].nunique()}")
 
     tsne_image(adata) # visualization of clustering
@@ -235,20 +236,20 @@ def spatial_plot(adata, coords, accent, title, output, type = "-1"):
 
 if __name__ == "__main__":
     # Comment after annotation
-    expr = pd.read_csv('../data/expression_annotated_corrected.csv')
+    # expr = pd.read_csv('../data/expression_annotated_corrected.csv')
 
-    print("Shape of expression matrix:", expr.shape)
-    adata = preprocess(expr, rem_list)
-    clustering(adata)
+    # print("Shape of expression matrix:", expr.shape)
+    # adata = preprocess(expr, rem_list)
+    # clustering(adata)
  
-    tsne_stacked(adata)
-    annotate(adata, n_genes = 5)
-    adata.write("../data/adata.h5ad")
+    # tsne_stacked(adata)
+    # annotate(adata, n_genes = 5)
+    # adata.write("../data/adata.h5ad")
 
     # Uncomment after annotation
-    # adata = sc.read("../data/adata.h5ad")
-    # coords = pd.read_csv('../data/cell_coordinates.csv')
+    adata = sc.read("../data/adata.h5ad")
+    coords = pd.read_csv('../data/cell_coordinates.csv')
     
-    # map_cells(adata, marker_to_cell)
-    # spatial_plot(adata, coords, 'cluster', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
-    # spatial_plot(adata, coords, 'cell', '3D Scatter - Cell Types', "../images/cell_types_3d.png")
+    map_cells(adata, marker_to_cell)
+    spatial_plot(adata, coords, 'cluster', '3D Scatter - Cell Clusters', "../images/cell_clusters_3d.png")
+    spatial_plot(adata, coords, 'cell', '3D Scatter - Cell Types', "../images/cell_types_3d.png")

@@ -2,11 +2,13 @@
 library(tidyverse) # data manipulation
 library(spatstat) # spatial statistics
 library(dplyr) # data manipulation with pipes
+library(FNN) # fast nearest neighbor search
+library(geometry) # volume computation
 
 # Define the ranges for each coordinate
 pp_box <- function(mat) {
   "Define the range of the point pattern object
-  mat(matrix): the 2D or 3D point pattern matrix
+  @mat(matrix): the 2D or 3D point pattern matrix
   "
   x_range <- c(min(mat[, 1]), max(mat[, 1]))
   y_range <- c(min(mat[, 2]), max(mat[, 2]))
@@ -23,9 +25,9 @@ pp_box <- function(mat) {
 # Declare the rotation matrices
 rotation <- function(a, b, g) {
   "Compute the rotation matrix
-   a(alpha of yaw): angle of rotation about the z-axis
-   b(beta of pinch): angle of rotation about the y-axis
-   g(gamma of roll): angle of rotation about the x-axis"
+   @a(alpha of yaw): angle of rotation about the z-axis
+   @b(beta of pinch): angle of rotation about the y-axis
+   @g(gamma of roll): angle of rotation about the x-axis"
   ca <- cos(a) # precompute cos and sin values
   sa <- sin(a)
   cb <- cos(b)
@@ -43,9 +45,9 @@ rotation <- function(a, b, g) {
 # Declare the slice function
 slice <- function(a, b, c, slice_size, mut_frame) {
   "Compute the slice of the 3D point pattern.
-   a, b, c: the normal vector of the slice (d = 0)
-   slice_size: the thickness of the slice
-   mut_frame: the 3D point dataframe which undergo transformation"
+   @a, b, c: the normal vector of the slice (d = 0)
+   @slice_size: the thickness of the slice
+   @mut_frame: the 3D point dataframe which undergo transformation"
   value <- a * mut_frame[, 1] + b * mut_frame[, 2] + c * mut_frame[, 3]
   # Return a logical vector: TRUE if value is within the slice, FALSE otherwise
   value >= -slice_size / 2 & value <= slice_size / 2
@@ -54,10 +56,10 @@ slice <- function(a, b, c, slice_size, mut_frame) {
 # Define the function to compute the dissections
 pc_for_slice <- function(a, b, g, cell_mat, r_grid = NULL) {
   "Compute the dissections of the 3D point pattern
-   a(alpha of yaw): angle of rotation about the z-axis
-   b(beta of pinch): angle of rotation about the y-axis
-   g(gamma of roll): angle of rotation about the x-axis
-   cell_mat: the 3D point matrix"
+   @a(alpha of yaw): angle of rotation about the z-axis
+   @b(beta of pinch): angle of rotation about the y-axis
+   @g(gamma of roll): angle of rotation about the x-axis
+   @cell_mat: the 3D point matrix"
   mut_mat <- t(rotation(a, b, g) %*% t(cell_mat))
   colnames(mut_mat) <- c("X", "Y", "Z")
   # Convert mutation_matrix to dataframe object to apply slice function
@@ -74,17 +76,17 @@ pc_for_slice <- function(a, b, g, cell_mat, r_grid = NULL) {
   pp_obj <- spatstat.geom::ppp(slices$X, slices$Y,
                                pp_box(as.matrix(slices[, 1:2])))
   # Compute the 2D PCF function
-  k <- spatstat.explore::Kest(pp_obj)
-  pcf <- spatstat.explore::pcf.fv(k, method = "b", spar = 0.5, r = r_grid)
+  k <- spatstat.explore::Kest(pp_obj, r = r_grid, correction = "none")
+  pcf <- spatstat.explore::pcf.fv(k, method = "b", spar = 0.5)
 
-  list(pcf = pcf, num_cells = dim(slices)[1]) # return pcf and number of cells
+  # Compute 2D Clark and Evans index and return the results
+  list(pcf = pcf, num_cells = dim(slices)[1], ce = ce_idx(slices))
 }
 
 angle_analysis <- function(cell_mat, valid_pairs, cell_type) {
   "Image slice of point pattern corresponds to the 
   selected n_cell_range
-  cell_mat: the 3D pint matrix
-  "
+  @cell_mat: the 3D pint matrix"
   valid_pairs <- as.data.frame(valid_pairs)
   colnames(valid_pairs) <- c("roll", "pinch")
   valid_pairs$angle_sum <- valid_pairs$roll + valid_pairs$pinch
@@ -111,4 +113,29 @@ angle_analysis <- function(cell_mat, valid_pairs, cell_type) {
   plot(slices[, "X"], slices[, "Y"], lwd = 2,
        xlab = "X axis", ylab = "Y axis",
        main = "Slice of cell with the closest angle sum")
+}
+
+ce_idx <- function(df) {
+  "Compute the Clark and Evans index for a set of points in 2D or 3D space
+  @df(data.frame): A data frame containing the coordinates of the points"
+  # R EXPECTED
+  ch <- geometry::convhulln(df, options = "FA")
+
+  # compute the density of the points
+  density <- nrow(df) / ch$vol
+
+  if (ncol(df) == 2) {
+    r_exp <- 1 / (2 * sqrt(density))
+  } else if (ncol(df) == 3) {
+    r_exp <- gamma(4 / 3) * (4 / 3 * pi * density)^(-1 / 3)
+  } else {
+    stop("Data frame must have 2 or 3 columns.")
+  }
+
+  # R OBSERVED
+  nn <- FNN::get.knnx(df, df, k = 2) # find the nearest neighbor
+  r_obs <- mean(nn$nn.dist[, 2]) # mean distance to the nearest neighbor
+
+  # CLARK AND EVANS INDEX
+  round(r_obs / r_exp, digits = 3)
 }

@@ -50,28 +50,25 @@ fit_func <- function(x, y, type = "gamma", pars = NULL, show_plot = FALSE) {
       pars <- c(amp = amp, decay = 1, rate = rate)
     }
   }
-  print(paste0("Initial parameters: ", paste(pars, collapse = ", ")))
+  print(paste0("Initial parameters: ", paste(pars, collapse = " ")))
 
   fit <- nls.lm(par = pars, fn = function(pars, x, y, model) y - model(x, pars),
     x = df$x, y = df$y, model = model_lib[[type]],
-    control = nls.lm.control(maxiter = 1000), lower = c(0, 0, 0),
+    control = nls.lm.control(maxiter = 1000), lower = c(0, 0, 0)
   )
 
   if (show_plot) {
     par(las = 1, bty = "l")
-    plot(df$x, df$y, xlab = "r", ylab = "Pcf(r)",
-         ylim = c(0, max(df$y) * 1.1))
+    plot(df$x, df$y, xlab = "r", ylab = "Pcf(r)", ylim = c(0, max(df$y) * 1.1))
     # draw the fitted curve directly using your model and fitted pars
-    lines(df$x, model_lib[[type]](df$x, fit$par), col = "red", lwd = 2,
-          lty = 2)
+    lines(df$x, model_lib[[type]](df$x, fit$par), col = "red", lwd = 2, lty = 2)
     # add the fitted parameters to the plot
-    text(x = 0.5, y = max(df$y) * 1.05, pos = 4,
-         labels = paste0(sprintf("%s = ", names(fit$par)[1]),
-                         round(fit$par[1], 3), "\n",
-                         sprintf("%s = ", names(fit$par)[2]),
-                         round(fit$par[2], 3), "\n",
-                         sprintf("%s = ", names(fit$par)[3]),
-                         round(fit$par[3], 3)), cex = 0.8)
+    legend("topright", legend = c(
+      paste0(sprintf("%s = ", names(fit$par)[1]), round(fit$par[1], 3)),
+      paste0(sprintf("%s = ", names(fit$par)[2]), round(fit$par[2], 3)),
+      paste0(sprintf("%s = ", names(fit$par)[3]), round(fit$par[3], 3))
+    ), bty = "n", cex = 0.8)
+    title(sprintf("Model Fit (%s) to Pair Correlation Function (Pcf)", type))
   }
   return(fit)
 }
@@ -81,7 +78,7 @@ pcf_plain <- read.csv("../data/pcf/sci_embryo/Cdh5+ Endothelium cells/pcf_plain.
 pcf_space <- read.csv("../data/pcf/sci_embryo/Cdh5+ Endothelium cells/pcf_space.csv") # nolint
 
 # Fit models (specify type if not "oscillation")
-pars <- c(height = 50, shape = 3, scale = 5)
-fit <- fit_func(x = pcf_space$r, y = pcf_space$mean, type = "oscillation",
+pars <- c(height = 50, shape = 3, scale = 5) # if some understanding exists
+fit <- fit_func(x = pcf_plain$r, y = pcf_plain$mean, type = "oscillation",
                 pars = NULL, show_plot = TRUE)
 print(fit)

@@ -38,7 +38,7 @@ colnames(expr_corr) <- panel$clean_target[match(chan_full, panel$Metal.Tag)]
 pheatmap::pheatmap(cor(expr_corr), filename = "../images/heat_cor.png")
 
 # ADDITIONAL CLEANING (OPTIONAL)
-col_to_remove <- c("Ir193", "Ir191", "Iridium191", "Iridium193", "Ruthenium", "NaN")
+col_to_remove <- c("Ir193", "Ir191", "Iridium", "Ruthenium", "NaN")
 expr_corr_filt <- expr_corr[, !colnames(expr_corr) %in% col_to_remove]
 print(sprintf("N_col of Filtered Corrected Mat %s", dim(expr_corr_filt)))
 
