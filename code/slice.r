@@ -1,11 +1,13 @@
 
-# INSTALLING LIBRARIES & ARGUMENTS PARSING
-library(spatstat) # spatial statistics
-library(tibble) # dataframes
-
+# SETTING THE ENVIRONMENT
 setwd(this.path::here())
 source("./module.r")
 source("./visual.r")
+
+suppressPackageStartupMessages({
+  library(spatstat) # spatial statistics
+  library(tibble) # dataframes
+})
 
 # PARSING ARGUMENTS
 args <- commandArgs(TRUE) # parsing the command line arguments
@@ -18,7 +20,6 @@ r_grid <- seq(0, as.numeric(args[2]), length.out = 513)
 # Downloading the spatial centered data of specific cell type
 coords <- read.csv(args[1]) # using the path argument from command line
 cell_type <- coords[1, "cell"] # reading the cell type
-dataset_name <- basename(dirname(args[1])) # reading the dataset name
 cell_mat <- as.matrix(coords[, 1:3])
 
 # COMPUTING TRUE SPATIAL PCF
@@ -55,7 +56,7 @@ mean_pcf(pcf_true, r_grid, pcf_mat, cell_type, num_cells_list) # module visual.r
 # ARCHIVISATION
 dir.create("../logs", showWarnings = FALSE)
 writeLines(c(paste("Executed Script: slice.r"), capture.output(sessionInfo())),
-           file.path("../logs", paste0("logs_slice_", Sys.Date(), ".txt")))
+           file.path("../logs", sprintf("logs_slice_%s.txt", Sys.Date())))
 
 # Final edits
 pcf_plain <- data.frame(r = r_grid, pcf_mat, check.names = FALSE)
@@ -63,7 +64,7 @@ colnames(pcf_plain)[-1] <- paste0("pcf_", seq_len(ncol(pcf_mat)))
 
 pcf_space <- tibble(r = pcf_true$r, pcf = pcf_true$iso)
 
-utils::write.csv(pcf_plain, sprintf("../data/pcf_temp/pcf_plain_%s.csv",
-                                    cell_type), row.names = FALSE)
-utils::write.csv(pcf_space, sprintf("../data/pcf_temp/pcf_space_%s.csv",
-                                    cell_type), row.names = FALSE)
+path <- sprintf("../data/pcf_temp/%s/%s", basename(dirname(args[1])), cell_type)
+dir.create(path, showWarnings = FALSE, recursive = TRUE)
+write.csv(pcf_plain, file.path(path, "pcf_plain.csv"), row.names = FALSE)
+write.csv(pcf_space, file.path(path, "pcf_space.csv"), row.names = FALSE)

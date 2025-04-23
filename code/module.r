@@ -1,10 +1,11 @@
 # Installing the libraries
-library(tidyverse) # data manipulation
-library(spatstat) # spatial statistics
-library(dplyr) # data manipulation with pipes
-library(FNN) # fast nearest neighbor search
-library(geometry) # volume computation
-
+suppressPackageStartupMessages({
+  library(tidyverse) # data manipulation
+  library(spatstat) # spatial statistics
+  library(dplyr) # data manipulation with pipes
+  library(FNN) # fast nearest neighbor search
+  library(geometry) # volume computation
+})
 # Define the ranges for each coordinate
 pp_box <- function(mat) {
   "Define the range of the point pattern object

@@ -1,25 +1,22 @@
 
-# INSTALLING PACKAGES
+# SETTING THE ENVIRONMENT
 setwd(this.path::here())
 source("module.r")
 source("visual.r")
 
-library(spatstat) # for spatial statistics
+suppressPackageStartupMessages({
+  library(spatstat) # for spatial statistics
+})
 
 # PARSING ARGUMENTS
 args <- commandArgs(TRUE)
-if (length(args) < 1) {
-  stop("Requires 1 argument: path to the file")
-}
+if (length(args) < 1) stop("Requires 1 argument: path to the file")
 
 # VARIABLES
 # Downloading the spatial centered data of specific cell type
 coords <- read.csv(args[1]) # parsing the path argument
 cell_type <- coords[1, "cell"] # reading the cell type
-data_name <- basename(dirname(args[1])) # technology name
-ce_tbl <- tibble(data = character(), cell = character(),
-  dim = character(), num = integer(), ce = double()
-) # empty table for storing the ce values
+ce_tbl <- tibble(dim = character(), num = integer(), ce = double())
 cell_mat <- as.matrix(coords[, 1:3]) # 3D point pattern matrix
 
 # COMPUTING TRUE SPATIAL PCF
@@ -45,19 +42,17 @@ index <- 1
 for (roll in rolls) {
   for (pinch in pinches) {
     # Call the pc_for_slice function to compute pcf for slice of 3D dataframe
-    result <- pc_for_slice(a = 0, b = pinch, g = roll, cell_mat)
-    pcf_list[[index]] <- result$pcf
-    num_cells_list[index] <- result$num_cells
+    res <- pc_for_slice(a = 0, b = pinch, g = roll, cell_mat)
+    pcf_list[[index]] <- res$pcf
+    num_cells_list[index] <- res$num_cells
 
-    if (!is.na(result$num_cells)  && result$num_cells > 1) {
+    if (!is.na(res$num_cells)  && res$num_cells > 1) {
       ce_tbl <- bind_rows(ce_tbl,
-        tibble(data = data_name, cell = cell_type,
-          dim = "plane", num = result$num_cells, ce = result$ce
-        )
+        tibble(dim = "plane", num = res$num_cells, ce = res$ce)
       )
 
-      if ((n_cell_range[1] <= result$num_cells) &&
-            (result$num_cells <= n_cell_range[2])) {
+      if ((n_cell_range[1] <= res$num_cells) &&
+            (res$num_cells <= n_cell_range[2])) {
         valid_pairs <- rbind(valid_pairs, c(roll, pinch))
       }
     } # activated when n_cell_range is set
@@ -66,22 +61,20 @@ for (roll in rolls) {
 }
 
 # Add space data to the ce table
-ce_tbl <- bind_rows(ce_tbl,
-  tibble(data = data_name, cell = cell_type, dim = "space",
-    num = nrow(coords), ce = ce_idx(coords[, c("x", "y", "z")])
-  )
+ce_tbl <- bind_rows(ce_tbl, tibble(dim = "space", num = nrow(coords),
+                                   ce = ce_idx(coords[, c("x", "y", "z")]))
 )
 
 # PLOTTING THE PCF CURVES
 cumul_pcf(pcf_true, pcf_list, cell_type, num_cells_list)
 
 # SAVING THE FILES
-
 dir.create("../logs", showWarnings = FALSE)
 writeLines(c(paste("Executed Script: angle.r"), capture.output(sessionInfo())),
-           file.path("../logs", paste0("logs_angle_", Sys.Date(), ".txt")))
-utils::write.csv(ce_tbl, sprintf("../data/ce_temp/ce_tbl_%s.csv",
-                                 cell_type), row.names = FALSE)
+           file.path("../logs", sprintf("logs_angle_%s.txt", Sys.Date())))
+path <- sprintf("../data/ce_temp/%s/%s", basename(dirname(args[1])), cell_type)
+dir.create(path, showWarnings = FALSE, recursive = TRUE)
+write.csv(ce_tbl, file.path(path, "ce_tbl.csv"), row.names = FALSE)
 
 # SLICE ANALYSIS
 if (n_cell_range[1] != -1) angle_analysis(cell_mat, valid_pairs, cell_type)

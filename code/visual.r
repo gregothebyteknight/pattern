@@ -1,11 +1,12 @@
 
 # INSTALLING LIBRARIES & ARGUMENTS PARSING
-library(Hmisc) # for weighted variance
-library(scales) # for col_numeric
-library(fields) # for image.plot (colorbar)
-library(ggplot2) # visualization
-library(RColorBrewer) # for color palettes
-
+suppressPackageStartupMessages({
+  library(Hmisc) # for weighted variance
+  library(scales) # for col_numeric
+  library(fields) # for image.plot (colorbar)
+  library(ggplot2) # visualization
+  library(RColorBrewer) # for color palettes
+})
 setwd(this.path::here())
 
 mean_pcf <- function(pcf_true, r_grid, pcf_mat, cell_type, num_cells_list) {
@@ -70,17 +71,14 @@ cumul_pcf <- function(pcf_true, pcf_list, cell_type, num_cells_list) {
 }
 
 plot_ce <- function(ce_all) {
-  png(filename = sprintf("../images/pc_total_%s.png"))
-
-  ggplot(ce_all, aes(x = ce_all$dimension, y = ce_all$ce,
-                     fill = ce_all$cell_type)) +
+  cell <- ce <- data <- dim <- NULL # to avoid R CMD check NOTE
+  ggplot(ce_all, aes(x = cell, y = ce, fill = dim)) +
     geom_boxplot(alpha = 0.7, outlier.shape = NA) +
-    geom_jitter(aes(color = ce_all$dataset),
-                width = 0.2, size = 1.5, alpha = 0.8) +
+    geom_jitter(aes(color = data), width = 0.2, size = 1.5, alpha = 0.8) +
     scale_fill_brewer(palette = "Set2") +
     scale_color_brewer(palette = "Dark2") +
     labs(title = "Clark–Evans Index: 2D Slices vs. Full 3D",
-         x = "Dimension", y = "CE Index",
-         fill = "Cell Type", color = "Dataset") +
+         x = "Cell type", y = "CE Index",
+         fill = "Dimention", color = "Dataset") +
     theme_minimal()
 }

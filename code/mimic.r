@@ -1,6 +1,9 @@
 
-library(minpack.lm)
-library(dplyr)
+# SETUP THE ENVIRONMENT
+suppressPackageStartupMessages({
+  library(minpack.lm)
+  library(dplyr)
+})
 
 setwd(this.path::here())
 

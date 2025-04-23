@@ -1,5 +1,7 @@
 # LOADING LIBRARIES
-library(pheatmap)
+suppressPackageStartupMessages({
+  library(pheatmap)
+})
 
 # Downloading Data (expression matrix, table metal - marker)
 expr <- read.delim("../data/cell_intensities.csv", sep = ",")
