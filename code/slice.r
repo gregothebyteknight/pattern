@@ -20,12 +20,12 @@ r_grid <- seq(0, as.numeric(args[2]), length.out = 513)
 # Downloading the spatial centered data of specific cell type
 coords <- read.csv(args[1]) # using the path argument from command line
 cell_type <- coords[1, "cell"] # reading the cell type
-cell_mat <- as.matrix(coords[, 1:3])
+cell_mat <- data.matrix(coords[, c("x", "y", "z")])
 
 # COMPUTING TRUE SPATIAL PCF
 true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
                                    cell_mat[, 3], pp_box(cell_mat))
-pcf_true <- spatstat.explore::pcf3est(true_pattern)
+pcf_true <- spatstat.explore::pcf3est(true_pattern, correction = "isotropic")
 
 # COMPUTING PCF FOR SLICES
 # Define a vector of angles
@@ -44,7 +44,9 @@ for (roll in rolls) {
   for (pinch in pinches) {
     # Call the pc_for_slice function to compute pcf for slice of 3D dataframe
     result <- pc_for_slice(a = 0, b = pinch, g = roll, cell_mat, r_grid)
-    pcf_mat[, index] <- result$pcf$pcf # 513 pcf values
+    g <- result$pcf$pcf
+    length(g) <- length(r_grid) # expanding the vector to 513
+    pcf_mat[, index] <- g # 513 pcf values
     num_cells_list[index] <- result$num_cells
     index <- index + 1
   }
@@ -59,12 +61,12 @@ writeLines(c(paste("Executed Script: slice.r"), capture.output(sessionInfo())),
            file.path("../logs", sprintf("logs_slice_%s.txt", Sys.Date())))
 
 # Final edits
-pcf_plain <- data.frame(r = r_grid, pcf_mat, check.names = FALSE)
-colnames(pcf_plain)[-1] <- paste0("pcf_", seq_len(ncol(pcf_mat)))
+pcf_plane <- data.frame(r = r_grid, pcf_mat, check.names = FALSE)
+colnames(pcf_plane)[-1] <- paste0("pcf_", seq_len(ncol(pcf_mat)))
 
 pcf_space <- tibble(r = pcf_true$r, pcf = pcf_true$iso)
 
-path <- sprintf("../data/pcf_temp/%s/%s", basename(dirname(args[1])), cell_type)
+path <- sprintf("../data/pcf/%s/%s", basename(dirname(args[1])), cell_type)
 dir.create(path, showWarnings = FALSE, recursive = TRUE)
-write.csv(pcf_plain, file.path(path, "pcf_plain.csv"), row.names = FALSE)
+write.csv(pcf_plane, file.path(path, "pcf_plane.csv"), row.names = FALSE)
 write.csv(pcf_space, file.path(path, "pcf_space.csv"), row.names = FALSE)

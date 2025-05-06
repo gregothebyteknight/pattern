@@ -15,7 +15,8 @@ Optimal (maybe) model parameters:
 
 model_lib <- list(
   gamma =  function(x, pars) {
-    pars["height"] / (pars["scale"]^pars["shape"] * gamma(pars["shape"])) *
+    pars["height"] / (pars["scale"]^pars["shape"] *
+                        base::gamma(pars["shape"])) *
       (x^(pars["shape"] - 1)) * exp(-x / pars["scale"]) + 1
   },
   oscillation = function(x, pars) {
@@ -23,8 +24,16 @@ model_lib <- list(
   }
 )
 
-fit_func <- function(x, y, type = "gamma", pars = NULL, show_plot = FALSE) {
+fit_func <- function(x, y, type = "gamma", fallback = NULL, show_plot = FALSE) {
   row_n <- grp <- n <- NULL # nonsense to avoid R CMD check notess
+
+  lms <- function(pars) {
+    nls.lm(par = pars, fn = function(pars, x, y, model) y - model(x, pars),
+           x = df$x, y = df$y, model = model_lib[[type]],
+           control = nls.lm.control(maxiter = 1000), lower = c(0, 0, 0))
+  }
+
+  # FUNCTION SELECTION
   df <- data.frame(x = x, y = y) |>
     dplyr::mutate(row_n = dplyr::row_number()) |>
     dplyr::filter(y > 1) |>
@@ -38,28 +47,39 @@ fit_func <- function(x, y, type = "gamma", pars = NULL, show_plot = FALSE) {
 
   if (nrow(df) == 0) stop("No data after filtering.")
 
-  # Model-specific parameters
-  if (is.null(pars)) { # If pars is not NULL, use it as initial values
-    if (type == "gamma") {
-      y_base <- df$y - 1 # pcf is equal to dgamma + 1
-      m <- mean(df$x * y_base) / mean(y_base) # weighted mean
-      v <- sum(y_base * (df$x - m)^2) / sum(y_base) # weighted variance
-      shape_init <- m^2 / v # From: shape = μ² / σ²
-      scale_init <- v / m # From: scale = σ² / μ
-      pars <- c(height = max(y_base), shape = shape_init, scale = scale_init)
-    } else if (type == "oscillation") {
-      amp <- (max(df$y) - min(df$y)) / 2
-      rate <- 2 * pi / (df$x[which.max(df$y)] - df$x[which.max(df$y) - 1])
-      pars <- c(amp = amp, decay = 1, rate = rate)
+  # FITTING THE SELECTED MODEL
+  if (type == "gamma") {
+    y_base <- df$y - 1 # pcf is equal to dgamma + 1
+    m <- mean(df$x * y_base) / mean(y_base) # weighted mean
+    v <- sum(y_base * (df$x - m)^2) / sum(y_base) # weighted variance
+    shape_init <- m^2 / v # From: shape = μ² / σ²
+    scale_init <- v / m # From: scale = σ² / μ
+    pars <- c(height = max(y_base), shape = shape_init, scale = scale_init)
+  } else if (type == "oscillation") {
+    amp <- (max(df$y) - min(df$y)) / 2
+    peak_idx <- which.max(df$y)
+    if (peak_idx < 2) {
+      warning("Peak at first point; using fallback rate")
+      rate <- fallback[["oscillation"]]["rate"]
+    } else {
+      rate <- 2 * pi / (df$x[peak_idx] - df$x[peak_idx - 1])
     }
+    pars <- c(amp = amp, decay = 1, rate = rate)
   }
-  print(paste0("Initial parameters: ", paste(pars, collapse = " ")))
 
-  fit <- nls.lm(par = pars, fn = function(pars, x, y, model) y - model(x, pars),
-    x = df$x, y = df$y, model = model_lib[[type]],
-    control = nls.lm.control(maxiter = 1000), lower = c(0, 0, 0)
-  )
+  if (any(!is.finite(pars))) {
+    warning("Initials non-finite; using fallback for ", type)
+    pars <- fallback[[type]]
+  }
 
+  # FITTING THE MODEL
+  fit <- lms(pars)
+  if (any(!is.finite(fit$par))) {
+    warning("Fitting failed; using fallback for ", type)
+    fit <- lms(fallback[[type]])
+  }
+
+  # VISUALIZATION
   if (show_plot) {
     par(las = 1, bty = "l")
     plot(df$x, df$y, xlab = "r", ylab = "Pcf(r)", ylim = c(0, max(df$y) * 1.1))
@@ -73,15 +93,5 @@ fit_func <- function(x, y, type = "gamma", pars = NULL, show_plot = FALSE) {
     ), bty = "n", cex = 0.8)
     title(sprintf("Model Fit (%s) to Pair Correlation Function (Pcf)", type))
   }
-  return(fit)
+  return(fit$par)
 }
-
-# Load data
-pcf_plain <- read.csv("../data/pcf/sci_embryo/Cdh5+ Endothelium cells/pcf_plain.csv") # nolint
-pcf_space <- read.csv("../data/pcf/sci_embryo/Cdh5+ Endothelium cells/pcf_space.csv") # nolint
-
-# Fit models (specify type if not "oscillation")
-pars <- c(height = 50, shape = 3, scale = 5) # if some understanding exists
-fit <- fit_func(x = pcf_plain$r, y = pcf_plain$mean, type = "oscillation",
-                pars = NULL, show_plot = TRUE)
-print(fit)

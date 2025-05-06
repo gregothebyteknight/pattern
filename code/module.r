@@ -77,7 +77,7 @@ pc_for_slice <- function(a, b, g, cell_mat, r_grid = NULL) {
   pp_obj <- spatstat.geom::ppp(slices$X, slices$Y,
                                pp_box(as.matrix(slices[, 1:2])))
   # Compute the 2D PCF function
-  k <- spatstat.explore::Kest(pp_obj, r = r_grid, correction = "none")
+  k <- spatstat.explore::Kest(pp_obj, r = r_grid, correction = "isotropic")
   pcf <- spatstat.explore::pcf.fv(k, method = "b", spar = 0.5)
 
   # Compute 2D Clark and Evans index and return the results
@@ -120,15 +120,22 @@ ce_idx <- function(df) {
   "Compute the Clark and Evans index for a set of points in 2D or 3D space
   @df(data.frame): A data frame containing the coordinates of the points"
   # R EXPECTED
-  ch <- geometry::convhulln(df, options = "FA")
-
-  # compute the density of the points
-  density <- nrow(df) / ch$vol
-
+  if (nrow(df) < 4) return(NA) # not enough points to compute the index
   if (ncol(df) == 2) {
-    r_exp <- 1 / (2 * sqrt(density))
+    pts <- spatstat.geom::ppp(df[, 1], df[, 2],
+                              window = spatstat.geom::owin(range(df[, 1]),
+                                                           range(df[, 2])))
+    ce_2d <- spatstat.explore::clarkevans(pts, correction = "Donnelly")
+    return(as.numeric(ce_2d))
+
   } else if (ncol(df) == 3) {
-    r_exp <- gamma(4 / 3) * (4 / 3 * pi * density)^(-1 / 3)
+    # Compute the convex geometry of the points
+    ch <- geometry::convhulln(df, options = "FA")
+    surface <- ch$area
+    volume <- ch$vol
+
+    r_exp <- gamma(4 / 3) * (4 / 3 * pi * (nrow(df) / volume))^(-1 / 3) *
+      (1 + 0.75 * (surface / (nrow(df)^(2 / 3) * volume^(2 / 3))))
   } else {
     stop("Data frame must have 2 or 3 columns.")
   }
