@@ -56,7 +56,6 @@ for (roll in rolls) {
                                                          na.rm = TRUE),
                                                r = max(res$pcf$r,
                                                        na.rm = TRUE)))
-
       if ((n_cell_range[1] <= res$num_cells) &&
             (res$num_cells <= n_cell_range[2])) {
         valid_pairs <- rbind(valid_pairs, c(roll, pinch))
@@ -91,4 +90,4 @@ if (n_cell_range[1] != -1) angle_analysis(cell_mat, valid_pairs, cell_type)
 
 # Print optimal r max for slice.r script
 max_index <- which.max(num_cells_list)
-print(sprintf("Optimal max_r: %s", max(pcf_list[[max_index]]$r)))
+print(sprintf("Optimal max_r: %s", round(max(pcf_list[[max_index]]$r), 2)))

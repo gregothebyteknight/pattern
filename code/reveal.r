@@ -68,7 +68,7 @@ naive_mode <- function(cult, dataset, tbl_all, type) {
   tbl_all # return the data frame
 }
 
-reveal_all <- function(mode, type, fallback) {
+reveal_all <- function(mode, type, fallback, sim = FALSE) {
   "concatenate spatial functions values from either plane or space
    @mode: the mode of the analysis (pcf or ce)
    @type: the type of fit (gamma or oscillation)"
@@ -77,6 +77,9 @@ reveal_all <- function(mode, type, fallback) {
   # DATA AGGREGATION
   for (dataset in list.dirs(path = sprintf("../data/%s", mode),
                             recursive = FALSE)) {
+    if (sim && !grepl("sim_[0-9]+$", basename(dataset))) next
+    if (!sim && grepl("sim_[0-9]+$", basename(dataset))) next
+
     for (cult in list.dirs(path = dataset, recursive = FALSE)) {
       print(sprintf("Cell type:%s", basename(cult)))
       dataset <- basename(dataset) # now need only the dataset name, not path
@@ -120,18 +123,50 @@ reveal_pval <- function(tbl_all, par_name) {
            group1 = "space", group2  = "plane",
            y.position = max(diff_tbl$plane, na.rm = TRUE) * 20)
 
+  # distribution of diff values
+  diff_ggplot <- diff_tbl |>
+    ggplot2::ggplot(ggplot2::aes(diff, fill = cell)) +
+    ggplot2::geom_histogram() +
+    ggplot2::geom_vline(aes(xintercept = 0), color = "#d86666",
+                        linetype = "dashed") +
+    labs(title = "Distribution of differences",
+         x = "Difference (plane - space)",
+         y = "Count") +
+    ggplot2::facet_wrap(~cell, scales = "free_y") +
+    ggplot2::theme_minimal()
+
+  ggplot2::ggsave("../temp/diff_histogram.png",
+                  plot = diff_ggplot, bg = "white")
+
+  value_ggplot <- plane_vals |>
+    ggplot2::ggplot(ggplot2::aes(plane, fill = cell)) +
+    ggplot2::geom_histogram() +
+    ggplot2::geom_vline(aes(xintercept = 0), color = "#d86666",
+                        linetype = "dashed") +
+    labs(title = "Distribution of differences",
+         x = "Difference (plane - space)",
+         y = "Count") +
+    ggplot2::facet_wrap(~cell, scales = "free_y") +
+    ggplot2::theme_minimal()
+
+  ggplot2::ggsave("../temp/value_histogram.png",
+                  plot = value_ggplot, bg = "white")
+
+
   pval_tbl # return the data frame with p-values
 }
 
 # MAIN FUNCTIONS
-mode <- "pcf" # choose mode: "naive" or "pcf"
-type <- "oscillation" # choose type if mode == "pcf": "gamma" or "oscillation"
+sim <- FALSE
+mode <- "naive" # choose mode: "naive" or "pcf"
+type <- "ce" # choose type if mode == "pcf": "gamma" or "oscillation"
 # and "ce" or "naive" if mode == "naive"
 par <- "par_2" # choose parameter to compare
 
-tbl_all <- reveal_all(mode, type, fallback) # get final table
+tbl_all <- reveal_all(mode, type, fallback, sim) # get final table
 write.csv(tbl_all, file = "../temp/tbl_all.csv", row.names = FALSE)
 
+tbl_all <- read.csv("../temp/tbl_all.csv") # load the table
 pval_tbl <- reveal_pval(tbl_all, par) # get p-values
 write.csv(pval_tbl, file = "../temp/pval_tbl.csv", row.names = FALSE)
 
