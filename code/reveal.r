@@ -4,7 +4,10 @@ setwd(this.path::here())
 source("visual.r")
 source("mimic.r")
 
-suppressPackageStartupMessages(library(dplyr)) # for data manipulation
+suppressPackageStartupMessages({
+  library(dplyr) # for data manipulation
+  library(purrr) # for mapping
+})
 
 # Variables
 fallback <- list(gamma = c(height = 15, shape = 3, scale = 4),
@@ -96,70 +99,93 @@ reveal_all <- function(mode, type, fallback, sim = FALSE) {
 }
 
 reveal_pval <- function(tbl_all, par_name) {
-  "compute the p-values for the difference between
-   spatial treats of 2D slices and full 3D
+  "compute two‐sided mid‐p on parameter values:
+   for each (data, cell) group
    @tbl_all: the data frame containing the ce values,
-   with the columns: data, cell, dim, par_1, par_2"
-  cell <- dim <- plane <- space <- p <- NULL # nonsense to avoid check notes
-  space_vals <- tbl_all |>
-    filter(dim == "space", na.rm = TRUE) |>
-    distinct(cell, .keep_all = TRUE) |> # one row per cell
-    rename(space = all_of(par_name)) |>
-    select(cell, space)
+   with the columns: data, cell, dim, num, ce
+   @par_name: the name of the parameter (par_1 or par_2)"
+  cell <- plane_vals <- space_val <- NULL
+  big_r <- big_t <- f <- p <- NULL
+  tbl_clean <- tbl_all |>
+    mutate(par = as.numeric(.data[[par_name]])) |>
+    filter(!is.na(par))
 
-  plane_vals <- tbl_all |>
-    filter(dim == "plane", na.rm = TRUE) |>
-    rename(plane = all_of(par_name)) |>
-    select(cell, plane)
+  paired <- tbl_clean |>
+    group_by(data, cell) |>
+    summarise(plane_vals = list(par[dim == "plane"]),
+              space_val = mean(par[dim == "space"]),
+              .groups = "drop")
 
-  diff_tbl <- plane_vals |>
-    left_join(space_vals, by = "cell", relationship = "many-to-one") |>
-    mutate(diff = plane - space)
+  pval_tbl <- paired |>
+    rowwise() |>
+    mutate(n = length(plane_vals),
+           big_r = sum(plane_vals <= space_val),
+           big_t = sum(plane_vals == space_val),
+           # mid‐p fraction
+           f = (big_r - big_t) / n + 0.5 * big_t / n,
+           # two‐sided p
+           p = 2 * pmin(f, 1 - f), p.label = paste0("p = ", signif(p, 3)),
+           y.position = 2.5, group1 = "space", group2 = "plane") |>
+    ungroup() |>
+    select(data, cell, p, y.position, group1, group2, p.label) # nolint
 
-  pval_tbl <- diff_tbl |>
-    group_by(cell) |>
-    summarise(p = t.test(diff)$p.value) |>
-    mutate(p.label = paste0("p = ", signif(p, 3)),
-           group1 = "space", group2  = "plane",
-           y.position = max(diff_tbl$plane, na.rm = TRUE) * 20)
+  pval_tbl
+}
 
-  # distribution of diff values
-  diff_ggplot <- diff_tbl |>
-    ggplot2::ggplot(ggplot2::aes(diff, fill = cell)) +
-    ggplot2::geom_histogram() +
-    ggplot2::geom_vline(aes(xintercept = 0), color = "#d86666",
-                        linetype = "dashed") +
-    labs(title = "Distribution of differences",
-         x = "Difference (plane - space)",
-         y = "Count") +
-    ggplot2::facet_wrap(~cell, scales = "free_y") +
-    ggplot2::theme_minimal()
+reveal_pval_z <- function(tbl_all, par_name) {
+  "compute two‐sided mid‐p on z‐scores:
+   z = (space_md - plane_md) / plane_sd
+   for each (data, cell) group
+   @tbl_all: the data frame containing the ce values,
+   with the columns: data, cell, dim, num, ce
+   @par_name: the name of the parameter (par_1 or par_2)"
+  cell <- plane_vals <- space_md <- plane_md <- f <- p <- NULL
+  z_space <- plane_sd <- big_r <- big_t <- NULL
+  # Clean and cast
+  tbl_clean <- tbl_all |>
+    mutate(par = as.numeric(.data[[par_name]])) |>
+    filter(!is.na(par))
 
-  ggplot2::ggsave("../temp/diff_histogram.png",
-                  plot = diff_ggplot, bg = "white")
+  # Summarise into one row per (data, cell)
+  paired <- tbl_clean |>
+    group_by(data, cell) |>
+    summarise(# list of raw 2D vals
+              plane_vals = list(par[dim == "plane"]),
+              # plane median & sd
+              plane_md = median(par[dim == "plane"]),
+              plane_sd = sd(par[dim == "plane"]),
+              # single 3D summary
+              space_md = median(par[dim == "space"]),
+              .groups = "drop")
 
-  value_ggplot <- plane_vals |>
-    ggplot2::ggplot(ggplot2::aes(plane, fill = cell)) +
-    ggplot2::geom_histogram() +
-    ggplot2::geom_vline(aes(xintercept = 0), color = "#d86666",
-                        linetype = "dashed") +
-    labs(title = "Distribution of differences",
-         x = "Difference (plane - space)",
-         y = "Count") +
-    ggplot2::facet_wrap(~cell, scales = "free_y") +
-    ggplot2::theme_minimal()
+  # 3) Rowwise compute z‐scores & mid‐p
+  pval_tbl <- paired |>
+    # drop any zero‐sd or missing
+    filter(!is.na(plane_sd), plane_sd > 0, !is.na(space_md)) |>
+    rowwise() |>
+    mutate(z_space = (space_md - plane_md) / plane_sd,
+           # number of plane observations
+           n = length(unlist(plane_vals)),
+           # mid-p counts
+           big_r = sum(((unlist(plane_vals) - plane_md) / plane_sd) <= z_space),
+           big_t = sum(((unlist(plane_vals) - plane_md) / plane_sd) == z_space),
+           # canonical mid-p fraction and two-sided p
+           f = (big_r - 0.5 * big_t) / (n + 1),
+           p = 2 * min(f, 1 - f), p.label = paste0("p = ", signif(p, 3)),
+           group1 = "space", group2 = "plane",
+           #  y.position = pmax(space_md, plane_md + 2.5 * plane_sd))
+           y.position = 1e4) |>
+    ungroup() |>
+    # select exactly your desired columns
+    select(data, cell, p, y.position, group1, group2, p.label) # nolint
 
-  ggplot2::ggsave("../temp/value_histogram.png",
-                  plot = value_ggplot, bg = "white")
-
-
-  pval_tbl # return the data frame with p-values
+  pval_tbl
 }
 
 # MAIN FUNCTIONS
 sim <- FALSE
-mode <- "naive" # choose mode: "naive" or "pcf"
-type <- "ce" # choose type if mode == "pcf": "gamma" or "oscillation"
+mode <- "pcf" # choose mode: "naive" or "pcf"
+type <- "gamma" # choose type if mode == "pcf": "gamma" or "oscillation"
 # and "ce" or "naive" if mode == "naive"
 par <- "par_2" # choose parameter to compare
 
@@ -167,7 +193,7 @@ tbl_all <- reveal_all(mode, type, fallback, sim) # get final table
 write.csv(tbl_all, file = "../temp/tbl_all.csv", row.names = FALSE)
 
 tbl_all <- read.csv("../temp/tbl_all.csv") # load the table
-pval_tbl <- reveal_pval(tbl_all, par) # get p-values
+pval_tbl <- reveal_pval_z(tbl_all, par) # get p-values
 write.csv(pval_tbl, file = "../temp/pval_tbl.csv", row.names = FALSE)
 
 # VISUALIZATION
@@ -189,4 +215,4 @@ if (mode == "pcf") {
   }
 }
 
-plot_space(tbl_all, pval_tbl, par, labels = lbl)
+plot_space(tbl_all, pval_tbl, par, labels = lbl, lim = NA)

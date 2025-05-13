@@ -81,7 +81,7 @@ cumul_pcf <- function(pcf_true, pcf_list, cell_type, num_cells_list) {
   dev.off()
 }
 
-plot_space <- function(tbl_all, pval_tbl = NULL, param, labels) {
+plot_space <- function(tbl_all, pval_tbl = NULL, param, labels, lim = NA) {
   "creates barplot to compare difference between spatial
    treats of 2D slices and full 3D
    @tbl_all: the data frame containing the ce values,
@@ -89,7 +89,7 @@ plot_space <- function(tbl_all, pval_tbl = NULL, param, labels) {
   p <- ggplot(tbl_all, aes_string(x = "cell", y = param, fill = "dim")) +
     geom_boxplot(alpha = 0.7, outlier.shape = NA,
                  position = position_dodge(width = 0.8)) +
-    geom_jitter(aes(color = data), width = 0.2, size = 1.5, alpha = 0.1) +
+    facet_wrap(~ data, ncol = 2, scales = "free_y") +
     geom_hline(yintercept = 1, col = "grey", linetype = "dashed") +
     scale_fill_brewer(palette = "Set2") +
     scale_color_brewer(palette = "Dark2") +
@@ -100,7 +100,9 @@ plot_space <- function(tbl_all, pval_tbl = NULL, param, labels) {
     theme(plot.title = element_text(hjust = 0.5),
           axis.text.x = element_text(angle = 45, vjust = 0.5)) +
     scale_x_discrete(label = function(x) stringr::str_trunc(x, 30)) +
-    scale_y_log10(expand = expansion(mult = c(0.01, 0.20)))
+    ylim(0, lim) +
+    scale_y_log10(expand = expansion(mult = c(0.01, 0.20))) +
+    coord_flip()
 
   if (inherits(pval_tbl, "data.frame") && nrow(pval_tbl) > 0) {
     p <- p + ggrepel::geom_text_repel(data = pval_tbl,
