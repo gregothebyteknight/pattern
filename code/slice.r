@@ -66,7 +66,11 @@ colnames(pcf_plane)[-1] <- paste0("pcf_", seq_len(ncol(pcf_mat)))
 
 pcf_space <- tibble(r = pcf_true$r, pcf = pcf_true$iso)
 
+pcf_num <- tibble(dim = "plane", num = num_cells_list)
+pcf_num <- bind_rows(pcf_num, tibble(dim = "space", num = nrow(cell_mat)))
+
 path <- sprintf("../data/pcf/%s/%s", basename(dirname(args[1])), cell_type)
 dir.create(path, showWarnings = FALSE, recursive = TRUE)
 write.csv(pcf_plane, file.path(path, "pcf_plane.csv"), row.names = FALSE)
 write.csv(pcf_space, file.path(path, "pcf_space.csv"), row.names = FALSE)
+write.csv(pcf_num, file.path(path, "pcf_num.csv"), row.names = FALSE)

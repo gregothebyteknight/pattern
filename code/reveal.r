@@ -28,7 +28,7 @@ labs <- list(
 )
 
 # Declare functions
-pcf_mode <- function(cult, dataset, dim, tbl_all, type, fallback) {
+pcf_mode <- function(cult, dataset, dims, tbl_all, type, fallback, g) {
   "compute the pcf fit for pcf values
    @cult: the path to the cell type
    @dataset: the name of the dataset
@@ -37,17 +37,42 @@ pcf_mode <- function(cult, dataset, dim, tbl_all, type, fallback) {
    with the columns: data, cell, dim, par_1, par_2 (2nd and 3rd fit parameters)
    @type: the type of fit (gamma or oscillation)
    @fallback: the fallback parameters for the fit"
-  pcf_tbl <- read.csv(file.path(cult, sprintf("pcf_%s.csv", dim)))
+  pcf_tbl <- read.csv(file.path(cult, sprintf("pcf_%s.csv", dims)))
+  nums <- read.csv(file.path(cult, "pcf_num.csv")) |>
+    dplyr::filter(.data$dim == dims)
   for (i in 2:ncol(pcf_tbl)) {
-    if (all(pcf_tbl[, i] <= 1, na.rm = TRUE)) {
-      message("Skipping slice ", i, " in ", cult, ": no y > 1")
+    if (!is.finite(nums[i - 1, "num"]) || nums[i - 1, "num"] < 3) {
+      message("Skipping slice ", i, " in ", cult, ": too few cells")
       next
     }
     params <- fit_func(pcf_tbl$r, pcf_tbl[, i], fallback = fallback, # nolint
                        type = type, show_plot = FALSE)
+    par_1 <- params[2]
+    par_2 <- params[3]
+    y_obs <- pcf_tbl[, i]
+    y_pred <- model_lib[[type]](pcf_tbl$r, params) # nolint
+
+    # classical R²
+    sse <- sum((y_obs - y_pred)^2, na.rm = TRUE)
+    sst <- sum((y_obs - mean(y_obs, na.rm = TRUE))^2, na.rm = TRUE)
+    r2  <- 1 - sse / sst
+    if (g) {
+      q_pts <- stats::qgamma(c(0, 0.99), shape = par_1, scale = par_2)
+      if (!all(is.finite(q_pts)) || any(q_pts < 0)) {
+        message("Skipping gamma transform for slice ", i,
+                " in ", cult, ": non-finite or non-positive q_pts: ",
+                paste0(round(q_pts, 3), collapse = ", "))
+        next
+      }
+      x_seq <- seq(q_pts[1], q_pts[2], length.out = 250)
+      y_seq <- stats::dgamma(x_seq, shape = par_1, scale = par_2)
+      par_1 <- max(y_seq, na.rm = TRUE) # amplitude
+      par_2 <- q_pts[2] - q_pts[1] # range of r
+    }
+
     tbl_all <- bind_rows(tbl_all, tibble(data = dataset, cell = basename(cult),
-                                         dim = dim, par_1 = params[2],
-                                         par_2 = params[3])) # returns tbl_all
+                                         par_1 = par_1, par_2 = par_2, r2 = r2,
+                                         dim = dims, n = nums[i - 1, "num"]))
   }
   tbl_all # return the data frame
 }
@@ -71,12 +96,13 @@ naive_mode <- function(cult, dataset, tbl_all, type) {
   tbl_all # return the data frame
 }
 
-reveal_all <- function(mode, type, fallback, sim = FALSE) {
+reveal_all <- function(mode, type, fallback, sim = FALSE, g = FALSE) {
   "concatenate spatial functions values from either plane or space
    @mode: the mode of the analysis (pcf or ce)
    @type: the type of fit (gamma or oscillation)"
   tbl_all <- tibble(data = character(), cell = character(), dim = character(),
-                    par_1 = double(), par_2 = double()) # initialize dataframe
+                    par_1 = double(), par_2 = double(),
+                    r2 = double(), n = integer())
   # DATA AGGREGATION
   for (dataset in list.dirs(path = sprintf("../data/%s", mode),
                             recursive = FALSE)) {
@@ -89,12 +115,13 @@ reveal_all <- function(mode, type, fallback, sim = FALSE) {
       if (mode == "naive") {
         tbl_all <- naive_mode(cult, dataset, tbl_all, type)
       } else {
-        tbl_all <- pcf_mode(cult, dataset, "plane", tbl_all, type, fallback)
-        tbl_all <- pcf_mode(cult, dataset, "space", tbl_all, type, fallback)
+        tbl_all <- pcf_mode(cult, dataset, "plane", tbl_all, type, fallback, g)
+        tbl_all <- pcf_mode(cult, dataset, "space", tbl_all, type, fallback, g)
       }
     }
   }
-  write.csv(tbl_all, file = "../data/tbl_all.csv", row.names = FALSE)
+  tbl_all <- tbl_all %>%
+    filter(is.finite(par_1) & is.finite(par_2)) # nolint amd remove NaN, Inf ...
   tbl_all # return the data frame with all the data)
 }
 
@@ -140,7 +167,7 @@ reveal_pval_z <- function(tbl_all, par_name) {
    with the columns: data, cell, dim, num, ce
    @par_name: the name of the parameter (par_1 or par_2)"
   cell <- plane_vals <- space_md <- plane_md <- f <- p <- NULL
-  z_space <- plane_sd <- big_r <- big_t <- NULL
+  z_space <- plane_sd <- big_r <- big_t <- max_par <- NULL
   # Clean and cast
   tbl_clean <- tbl_all |>
     mutate(par = as.numeric(.data[[par_name]])) |>
@@ -149,14 +176,17 @@ reveal_pval_z <- function(tbl_all, par_name) {
   # Summarise into one row per (data, cell)
   paired <- tbl_clean |>
     group_by(data, cell) |>
-    summarise(# list of raw 2D vals
-              plane_vals = list(par[dim == "plane"]),
+    summarise(plane_vals = list(par[dim == "plane"]),
               # plane median & sd
               plane_md = median(par[dim == "plane"]),
               plane_sd = sd(par[dim == "plane"]),
               # single 3D summary
               space_md = median(par[dim == "space"]),
-              .groups = "drop")
+              .groups = "drop") |>
+    mutate(
+           max_par = map2_dbl(plane_vals, space_md,
+             ~ max(c(max(.x, na.rm = TRUE), .y), na.rm = TRUE)
+           ))
 
   # 3) Rowwise compute z‐scores & mid‐p
   pval_tbl <- paired |>
@@ -173,11 +203,24 @@ reveal_pval_z <- function(tbl_all, par_name) {
            f = (big_r - 0.5 * big_t) / (n + 1),
            p = 2 * min(f, 1 - f), p.label = paste0("p = ", signif(p, 3)),
            group1 = "space", group2 = "plane",
-           #  y.position = pmax(space_md, plane_md + 2.5 * plane_sd))
-           y.position = 1e4) |>
+           y.position = max_par * 1.1) |>
+    #  y.position = 1e4) |>
     ungroup() |>
     # select exactly your desired columns
     select(data, cell, p, y.position, group1, group2, p.label) # nolint
+
+  pval_tbl <- pval_tbl %>%
+    group_by(data) %>%  # optional: correct within each dataset
+    mutate(
+      p.bonf = p.adjust(p, method = "bonferroni"),
+      p.holm = p.adjust(p, method = "holm"),
+      p.BH = p.adjust(p, method = "BH"), # FDR
+      p.BY = p.adjust(p, method = "BY"), # FDR under dependence
+    ) %>%
+    ungroup() %>%
+    mutate(
+      BH.label = paste0("FDR=", signif(p.BH, 3)) # nolint
+    )
 
   pval_tbl
 }
@@ -187,22 +230,32 @@ sim <- FALSE
 mode <- "pcf" # choose mode: "naive" or "pcf"
 type <- "gamma" # choose type if mode == "pcf": "gamma" or "oscillation"
 # and "ce" or "naive" if mode == "naive"
-par <- "par_2" # choose parameter to compare
+g <- TRUE # when pcf fit, either use fit parameters, our transformed one
 
-tbl_all <- reveal_all(mode, type, fallback, sim) # get final table
+tbl_all <- reveal_all(mode, type, fallback, sim, g) # get final table
 write.csv(tbl_all, file = "../temp/tbl_all.csv", row.names = FALSE)
 
+par <- "par_2" # choose parameter to compare
 tbl_all <- read.csv("../temp/tbl_all.csv") # load the table
+
 pval_tbl <- reveal_pval_z(tbl_all, par) # get p-values
 write.csv(pval_tbl, file = "../temp/pval_tbl.csv", row.names = FALSE)
 
 # VISUALIZATION
 lbl <- labs[[mode]][[type]]
 if (mode == "pcf") {
-  if (type == "gamma") {
-    if (par == "par_1") f_par <- "shape" else f_par <- "scale"
-  } else if (type == "oscillation") {
-    if (par == "par_1") f_par <- "decay" else f_par <- "rate"
+  if (g) {
+    if (par == "par_1") {
+      f_par <- sprintf("amp_%s", type)
+    } else {
+      f_par <- sprintf("range_%s", type)
+    }
+  } else {
+    if (type == "gamma") {
+      if (par == "par_1") f_par <- "shape" else f_par <- "scale"
+    } else if (type == "oscillation") {
+      if (par == "par_1") f_par <- "decay" else f_par <- "rate"
+    }
   }
   lbl$y_label <- sprintf(lbl$y_label, f_par)
   lbl$file <- sprintf(lbl$file, f_par)

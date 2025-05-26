@@ -50,7 +50,7 @@ for i in $(seq 1 30); do
     continue
   fi
 
-  echo "  → Parsed raw max_r = $NUM; scaled ×1.1 → $MAX_R"
-  echo "  → Running slice.r with r_max = $MAX_R"
+  echo " → Parsed raw max_r = $NUM; scaled ×1.1 → $MAX_R"
+  echo " → Running slice.r with r_max = $MAX_R"
   Rscript ~/Documents/shapes/code/slice.r "$INPUT_FILE" "$MAX_R"
 done

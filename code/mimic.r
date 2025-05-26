@@ -25,7 +25,6 @@ model_lib <- list(
 )
 
 fit_func <- function(x, y, type = "gamma", fallback = NULL, show_plot = FALSE) {
-  row_n <- grp <- n <- NULL # nonsense to avoid R CMD check notess
 
   lms <- function(pars) {
     nls.lm(par = pars, fn = function(pars, x, y, model) y - model(x, pars),
@@ -35,17 +34,9 @@ fit_func <- function(x, y, type = "gamma", fallback = NULL, show_plot = FALSE) {
 
   # FUNCTION SELECTION
   df <- data.frame(x = x, y = y) |>
-    dplyr::mutate(row_n = dplyr::row_number()) |>
-    dplyr::filter(y > 1) |>
-    dplyr::mutate(grp = row_n - dplyr::row_number()) |>
-    dplyr::group_by(grp) |>
-    dplyr::mutate(n = dplyr::n()) |>
-    dplyr::ungroup() |>
-    dplyr::filter(n == max(n)) |>
-    dplyr::mutate(x = x - min(x)) |>
-    dplyr::select(-grp, -row_n, -n)
+    filter(is.finite(x), is.finite(y))
 
-  if (nrow(df) == 0) stop("No data after filtering.")
+  if (nrow(df) == 0) stop("No data")
 
   # FITTING THE SELECTED MODEL
   if (type == "gamma") {
@@ -81,8 +72,10 @@ fit_func <- function(x, y, type = "gamma", fallback = NULL, show_plot = FALSE) {
 
   # VISUALIZATION
   if (show_plot) {
-    par(las = 1, bty = "l")
-    plot(df$x, df$y, xlab = "r", ylab = "Pcf(r)", ylim = c(0, max(df$y) * 1.1))
+    dev.new()
+    print("Plotting...")
+    plot(df$x, df$y, xlab = "r", ylab = "Pcf(r)",
+         ylim = c(0, max(df$y) * 1.1))
     # draw the fitted curve directly using your model and fitted pars
     lines(df$x, model_lib[[type]](df$x, fit$par), col = "red", lwd = 2, lty = 2)
     # add the fitted parameters to the plot

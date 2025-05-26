@@ -19,7 +19,8 @@ cell_type <- coords[1, "cell"] # reading the cell type
 cell_mat <- data.matrix(coords[, c("x", "y", "z")]) # 3D point pattern matrix
 
 ce_tbl <- tibble(dim = character(), num = integer(), ce = double())
-pcf_naive <- tibble(dim = character(), pcf = double(), r = double())
+pcf_naive <- tibble(dim = character(), pcf = double(),
+                    r = double(), num = integer())
 
 # COMPUTING TRUE SPATIAL PCF
 true_pattern <- spatstat.geom::pp3(cell_mat[, 1], cell_mat[, 2],
@@ -37,7 +38,8 @@ pinches <- runif(n = n_iter, min = 0, max = 2 * pi)
 pcf_list <- vector("list", length = n_iter^2)
 num_cells_list <- numeric(length = n_iter^2)
 valid_pairs <- matrix(nrow = 0, ncol = 2)  # column 1 = roll, column 2 = pinch
-n_cell_range <- c(-1, 100000) # set according to the pcf plot
+if (length(args) == 3) n_range <- as.numeric(args[2:3]) else n_range <- c(-1, 1)
+print(sprintf("Selected range of number of cells: %s", n_range))
 
 # Loop over the roll angles
 index <- 1
@@ -55,12 +57,13 @@ for (roll in rolls) {
                                                pcf = max(res$pcf$pcf,
                                                          na.rm = TRUE),
                                                r = max(res$pcf$r,
-                                                       na.rm = TRUE)))
-      if ((n_cell_range[1] <= res$num_cells) &&
-            (res$num_cells <= n_cell_range[2])) {
+                                                       na.rm = TRUE),
+                                               num = res$num_cells))
+      if ((n_range[1] <= res$num_cells) &&
+            (res$num_cells <= n_range[2])) {
         valid_pairs <- rbind(valid_pairs, c(roll, pinch))
       }
-    } # activated when n_cell_range is set
+    } # activated when n_range is set
     index <- index + 1
   }
 }
@@ -71,10 +74,11 @@ ce_tbl <- bind_rows(ce_tbl, tibble(dim = "space", num = nrow(coords),
 )
 pcf_naive <- bind_rows(pcf_naive, tibble(dim = "space", pcf = max(pcf_true$iso,
                                                                   na.rm = TRUE),
-                                         r = max(pcf_true$r, na.rm = TRUE)))
+                                         r = max(pcf_true$r, na.rm = TRUE),
+                                         num = nrow(coords)))
 
 # PLOTTING THE PCF CURVES
-cumul_pcf(pcf_true, pcf_list, cell_type, num_cells_list)
+cumul_pcf(pcf_true, pcf_list, cell_type, num_cells_list, n_range)
 
 # SAVING THE FILES
 dir.create("../logs", showWarnings = FALSE)
@@ -86,7 +90,7 @@ write.csv(ce_tbl, file.path(path, "ce_tbl.csv"), row.names = FALSE)
 write.csv(pcf_naive, file.path(path, "pcf_naive.csv"), row.names = FALSE)
 
 # SLICE ANALYSIS
-if (n_cell_range[1] != -1) angle_analysis(cell_mat, valid_pairs, cell_type)
+if (n_range[1] != -1) angle_analysis(cell_mat, valid_pairs, cell_type)
 
 # Print optimal r max for slice.r script
 max_index <- which.max(num_cells_list)

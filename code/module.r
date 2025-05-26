@@ -84,10 +84,10 @@ pc_for_slice <- function(a, b, g, cell_mat, r_grid = NULL) {
   list(pcf = pcf, num_cells = dim(slices)[1], ce = ce_idx(slices))
 }
 
-angle_analysis <- function(cell_mat, valid_pairs, cell_type) {
+angle_analysis <- function(cell_mat, valid_pairs, type) {
   "Image slice of point pattern corresponds to the 
   selected n_cell_range
-  @cell_mat: the 3D pint matrix"
+  @cell_mat: the 3D point matrix"
   valid_pairs <- as.data.frame(valid_pairs)
   colnames(valid_pairs) <- c("roll", "pinch")
   valid_pairs$angle_sum <- valid_pairs$roll + valid_pairs$pinch
@@ -110,7 +110,7 @@ angle_analysis <- function(cell_mat, valid_pairs, cell_type) {
     filter(slice(0, 0, 1, 10, as.matrix(mut_frame[, 1:3])))
   print(sprintf("Number of cells in selected slice: %s", dim(slices)[1]))
 
-  png(filename = sprintf("../images/angle_%s.png", cell_type))
+  png(filename = sprintf("../images/angle_%s_%s.png", type, dim(slices)[1]))
   plot(slices[, "X"], slices[, "Y"], lwd = 2,
        xlab = "X axis", ylab = "Y axis",
        main = "Slice of cell with the closest angle sum")
