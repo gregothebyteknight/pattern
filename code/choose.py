@@ -1,24 +1,25 @@
 
 # IMPORT MODULES
-import pandas as pd
 import argparse
+import pandas as pd
+from pathlib import Path
 
 parser = argparse.ArgumentParser(
                     prog = 'choose.py',
                     description = 'Choose the cluster of cells ')
 
 parser.add_argument('--path_to_coords', '-p', type = str, default = '../data/cell_coordinates.csv')
-parser.add_argument('--path_to_output', '-o', type = str, default = '../data/selected_cell_coordinates.csv')
+# parser.add_argument('--path_to_output', '-o', type = str, default = '../data/selected_cell_coordinates.csv')
 parser.add_argument('--clusters', '-c', type = int, nargs = '+', default = [-1])
 parser.add_argument('--sample_size', '-s', type = int, default = None)
 
 args = parser.parse_args()
 cluster_type = args.clusters
 n_sample = args.sample_size
-path_to_coords = args.path_to_coords
-path_to_output = args.path_to_output
+in_path = Path(args.path_to_coords)
+out_path = in_path.with_name(in_path.stem + "_selected" + in_path.suffix)
 
-coords = pd.read_csv(path_to_coords) # check index column
+coords = pd.read_csv(in_path) # check index column
 
 if cluster_type[0] == -1:
     cluster_type = coords["cluster"].unique()
@@ -50,4 +51,4 @@ def select_cell(coords, cluster_type, n_sample):
     return cell_coords_center
 
 cell_coords_center = select_cell(coords, cluster_type, n_sample)
-cell_coords_center.to_csv(path_to_output, index = False)
+cell_coords_center.to_csv(out_path, index = False)

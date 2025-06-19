@@ -9,4 +9,7 @@ archive/*
 *.tiff
 *.tif
 
+# Ignore notes file
+notes/*
+
 

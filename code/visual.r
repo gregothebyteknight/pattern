@@ -85,7 +85,7 @@ cumul_pcf <- function(pcf_true, pcf_list, cell_type, num_cells_list, n_range) {
   fields::image.plot(legend.only = TRUE, zlim = z_range,
                      col = viridis::cividis(100),
                      legend.lab = "Number of cells",
-                     legend.line = 2, legend.mar = 3)
+                     legend.line = 3, legend.mar = 10, legend.shrink = 0.4)
   dev.off()
 }
 
@@ -94,34 +94,46 @@ plot_space <- function(tbl_all, pval_tbl = NULL, param, labels, lim = NA) {
    treats of 2D slices and full 3D
    @tbl_all: the data frame containing the ce values,
    with the columns: data, cell, dim, num, ce"
+  deep_cols <- c(
+    "#4C72B0",  # deep[1]: blue
+    "#55A868",  # deep[2]: green
+    "#C44E52",  # deep[3]: red
+    "#8172B2",  # deep[4]: purple
+    "#CCB974",  # deep[5]: mustard
+    "#64B5CD"   # deep[6]: cyan
+  )
+  dodge_width <- 0.8
+
   p <- ggplot(tbl_all, aes_string(x = "cell", y = param, fill = "dim")) +
-    geom_boxplot(alpha = 0.7, position = position_dodge(width = 0.8)) +
+    geom_boxplot(alpha = 0.7, position = position_dodge(width = dodge_width)) +
+    geom_point(inherit.aes = FALSE,
+      data = subset(tbl_all, dim == "space"),
+      aes(x = cell, y = !!sym(param)),
+      color    = "#55A868",
+      position = position_nudge(x = 0.2),
+      size = 2
+    ) +
     facet_wrap(~ data, ncol = 2, scales = "free_y") +
     geom_hline(yintercept = 1, col = "grey", linetype = "dashed") +
-    scale_fill_brewer(palette = "Set2") +
-    scale_color_brewer(palette = "Dark2") +
+    scale_fill_manual(
+      name   = "Dimension",
+      values = deep_cols[1:2],
+      labels = c("2D slice", "3D full")
+    ) +
     labs(x = "Cell type", y = labels$y_label,
-         fill = "Dimention", color = "Dataset",
+         fill = "Dimention",
          title = labels$title) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5),
           axis.text.x = element_text(angle = 45, vjust = 0.5)) +
-    scale_x_discrete(label = function(x) stringr::str_trunc(x, 30)) +
-    scale_y_log10(expand = expansion(mult = c(0.01, 0.20))) +
+    scale_x_discrete(label = function(x) stringr::str_trunc(x, 15)) +
+    scale_y_log10(limits = c(NA, 1e4)) +
     coord_flip()
 
-  if (inherits(pval_tbl, "data.frame") && nrow(pval_tbl) > 0) {
-    p <- p + ggrepel::geom_text_repel(data = pval_tbl,
-      aes(x = cell, y = y.position, label = BH.label), # nolint
-      inherit.aes = FALSE, size = 3, nudge_x = 0.2, hjust = -0.05,
-      # —— vertical adjustment only (so labels won’t drift sideways)
-      direction = "y", nudge_y = 0.05, force = 1,
-      min.segment.length = 0, segment.size = 0.2
-    )
-  }
-
-  ggsave(filename = sprintf("../images/FINALS/Boxplots/%s_compare.png",
-                            labels$file),
-         width = 10, height = 6, dpi = 300, plot = p,
-         units = "in", device = "png", bg = "white")
+  # Saving the plot
+  cairo_pdf(filename = sprintf("../images/FINALS/Boxplots/%s_box.pdf",
+                               labels$file),
+            width = 8, height = 6, family = "Arial")
+  print(p)
+  dev.off()
 }

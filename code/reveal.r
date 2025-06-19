@@ -41,7 +41,7 @@ pcf_mode <- function(cult, dataset, dims, tbl_all, type, fallback, g) {
   nums <- read.csv(file.path(cult, "pcf_num.csv")) |>
     dplyr::filter(.data$dim == dims)
   for (i in 2:ncol(pcf_tbl)) {
-    if (!is.finite(nums[i - 1, "num"]) || nums[i - 1, "num"] < 3) {
+    if (!is.finite(nums[i - 1, "num"]) || nums[i - 1, "num"] < 25) {
       message("Skipping slice ", i, " in ", cult, ": too few cells")
       next
     }
@@ -90,6 +90,8 @@ naive_mode <- function(cult, dataset, tbl_all, type) {
   if (type == "ce") par_2 <- "ce" else par_2 <- "r"
 
   naive <- read.csv(file.path(cult, name))
+  naive <- naive %>% filter(num > 24) # nolint
+
   tbl_all <- bind_rows(tbl_all, tibble(data = dataset, cell = basename(cult),
                                        par_1 = naive[[par_1]], dim = naive$dim,
                                        par_2 = naive[[par_2]]))
@@ -207,7 +209,7 @@ reveal_pval_z <- function(tbl_all, par_name) {
     #  y.position = 1e4) |>
     ungroup() |>
     # select exactly your desired columns
-    select(data, cell, p, y.position, group1, group2, p.label) # nolint
+    select(data, cell, p, y.position, group1, group2, p.label, n) # nolint
 
   pval_tbl <- pval_tbl %>%
     group_by(data) %>%  # optional: correct within each dataset

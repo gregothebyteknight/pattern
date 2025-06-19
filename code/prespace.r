@@ -5,7 +5,10 @@ source("module.r")
 source("visual.r")
 
 suppressPackageStartupMessages({
-  library(spatstat) # for spatial statistics
+  library(spatstat.geom) # geometric objects (ppp, pp3, box, owin)
+  library(spatstat.explore) # exploratory analysis (Kest, pcf3est)
+  library(tibble) # dataframes
+  library(dplyr) # data manipulation
 })
 
 # PARSING ARGUMENTS
@@ -29,43 +32,38 @@ pcf_true <- spatstat.explore::pcf3est(true_pattern, correction = "isotropic")
 
 # COMPUTING PCF FOR SLICES
 # Define a vector of angles
-n_iter <- 30 # number of iterations
+n_iter <- 900 # number of iterations
 rolls <- runif(n = n_iter, min = 0, max = 2 * pi)
 pinches <- runif(n = n_iter, min = 0, max = 2 * pi)
 # yaws <- runif(n = n_iter, min = 0, max = 2 * pi) just in case
 
 # Create an empty lists to store the pcf objects and number of cells
-pcf_list <- vector("list", length = n_iter^2)
-num_cells_list <- numeric(length = n_iter^2)
+pcf_list <- vector("list", length = n_iter)
+num_cells_list <- numeric(length = n_iter)
 valid_pairs <- matrix(nrow = 0, ncol = 2)  # column 1 = roll, column 2 = pinch
 if (length(args) == 3) n_range <- as.numeric(args[2:3]) else n_range <- c(-1, 1)
 print(sprintf("Selected range of number of cells: %s", n_range))
 
 # Loop over the roll angles
-index <- 1
-for (roll in rolls) {
-  for (pinch in pinches) {
-    # Call the pc_for_slice function to compute pcf for slice of 3D dataframe
-    res <- pc_for_slice(a = 0, b = pinch, g = roll, cell_mat)
-    pcf_list[[index]] <- res$pcf
-    num_cells_list[index] <- res$num_cells
+for (i in 1:n_iter) {
+  # Call the pc_for_slice function to compute pcf for slice of 3D dataframe
+  res <- pc_for_slice(a = 0, b = pinches[i], g = rolls[i], cell_mat = cell_mat)
+  pcf_list[[i]] <- res$pcf
+  num_cells_list[i] <- res$num_cells
 
-    if (!is.na(res$num_cells)  && res$num_cells > 1) {
-      ce_tbl <- bind_rows(ce_tbl, tibble(dim = "plane",
-                                         num = res$num_cells, ce = res$ce))
-      pcf_naive <- bind_rows(pcf_naive, tibble(dim = "plane",
-                                               pcf = max(res$pcf$pcf,
-                                                         na.rm = TRUE),
-                                               r = max(res$pcf$r,
+  if (!is.na(res$num_cells)  && res$num_cells > 1) {
+    ce_tbl <- bind_rows(ce_tbl, tibble(dim = "plane",
+                                       num = res$num_cells, ce = res$ce))
+    pcf_naive <- bind_rows(pcf_naive, tibble(dim = "plane",
+                                             pcf = max(res$pcf$pcf,
                                                        na.rm = TRUE),
-                                               num = res$num_cells))
-      if ((n_range[1] <= res$num_cells) &&
-            (res$num_cells <= n_range[2])) {
-        valid_pairs <- rbind(valid_pairs, c(roll, pinch))
-      }
-    } # activated when n_range is set
-    index <- index + 1
-  }
+                                             r = max(res$pcf$r, na.rm = TRUE),
+                                             num = res$num_cells))
+    if ((n_range[1] <= res$num_cells) &&
+          (res$num_cells <= n_range[2])) {
+      valid_pairs <- rbind(valid_pairs, c(rolls[i], pinches[i]))
+    }
+  } # activated when n_range is set
 }
 
 # Add space data to the ce table
@@ -86,8 +84,8 @@ writeLines(c(paste("Executed Script: angle.r"), capture.output(sessionInfo())),
            file.path("../logs", sprintf("logs_angle_%s.txt", Sys.Date())))
 path <- sprintf("../data/naive/%s/%s", basename(dirname(args[1])), cell_type)
 dir.create(path, showWarnings = FALSE, recursive = TRUE)
-write.csv(ce_tbl, file.path(path, "ce_tbl.csv"), row.names = FALSE)
-write.csv(pcf_naive, file.path(path, "pcf_naive.csv"), row.names = FALSE)
+# write.csv(ce_tbl, file.path(path, "ce_tbl.csv"), row.names = FALSE)
+# write.csv(pcf_naive, file.path(path, "pcf_naive.csv"), row.names = FALSE)
 
 # SLICE ANALYSIS
 if (n_range[1] != -1) angle_analysis(cell_mat, valid_pairs, cell_type)
