@@ -1,15 +1,18 @@
 # Ignore big data file
-data/*
+data/pcf/*
+data/init/*
+data/cell_crc/*
+data/naive/*
 
 
 # Ignore archive files
 archive/*
 
 # Ignore all images in tiff
-*.tiff
-*.tif
+images/*
 
 # Ignore notes file
-notes/*
+logs/*
+temp/*
 
 
