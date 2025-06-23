@@ -83,27 +83,55 @@ The analysis is performed through a series of interconnected scripts, primarily 
     *   **Processing**: Filters the coordinate data to retain only cells belonging to the chosen cluster(s).
     *   **Outputs**: A filtered version of cell coordinates, possibly `../data/<dataset_name>/cell_coordinates_selected.csv`.
 
-5.  **Spatial Slicing and PCF Analysis (R: `code/module.r`, orchestrated by scripts like `code/space.r` or other custom analysis scripts)**
-    *   **`code/module.r`**: This is a library of functions for spatial analysis.
+5.  **`code/prespace.r` (R)**
+    *   **Purpose**: This script serves as a preparatory step for the main spatial analysis. It performs an initial exploration of spatial characteristics, including calculating the 3D PCF, PCFs for multiple random 2D slices, and Clark-Evans (CE) aggregation indices. A key function is to help determine an optimal maximum radius (`r_max`) for PCF calculations, which can then be used in `space.r`. It can also identify specific 2D slices based on cell count criteria.
+    *   **Inputs**:
+        *   Path to the cell coordinates CSV file (e.g., `../data/<dataset_name>/cell_coordinates_selected.csv`).
+        *   Optional: `n_range` (min and max number of cells) to select slices for specific analysis or visualization.
+    *   **Processing**:
+        *   Sources functions from `code/module.r` and `code/visual.r`.
+        *   Calculates the 3D PCF for the input cell data.
+        *   Generates a specified number of random 2D slices by rotating the 3D data and uses `pc_for_slice` (from `module.r`) to compute their 2D PCFs and CE indices.
+        *   Collects PCF data, cell counts, and CE indices for all slices.
+        *   If `n_range` is provided, it identifies rotation angles for slices meeting the cell count criteria and can visualize a representative slice using `angle_analysis` (from `module.r`).
+        *   Generates a cumulative PCF plot comparing the 3D PCF to the distribution of 2D PCFs using `cumul_pcf` (from `visual.r`).
+        *   Prints a suggested "Optimal max_r" to the console.
+    *   **Outputs**:
+        *   Console output: Suggested `r_max` value.
+        *   Plots: Cumulative PCF plot, image of a selected slice (if `n_range` is used).
+        *   Data: `ce_tbl.csv` (Clark-Evans indices), `pcf_naive.csv` (basic PCF characteristics) stored in `../data/naive/<dataset_folder>/<cell_type>/`.
+
+6.  **Spatial Slicing and PCF Analysis (R: `code/space.r`, `code/module.r`, `code/visual.r`)**
+    *   **`code/module.r`**: This is a library of core functions for spatial statistics.
         *   **Key Functions**:
             *   `rotation()`: Creates 3D rotation matrices.
             *   `slice()`: Extracts cells within a 2D slice of defined thickness from a (potentially rotated) 3D point cloud.
-            *   `pc_for_slice()`: Takes a 3D cell coordinate matrix, applies rotation, extracts a slice, and computes the 2D PCF for that slice using `spatstat`. Also calculates the Clark and Evans aggregation index.
+            *   `pc_for_slice()`: Takes a 3D cell coordinate matrix, applies rotation, extracts a slice, computes the 2D PCF for that slice using `spatstat`, and calculates the Clark and Evans aggregation index.
             *   `ce_idx()`: Computes the Clark and Evans index for 2D or 3D point sets.
-    *   **`code/space.r` (R - *as described in original README, not provided for detailed review*)**:
-        *   **Purpose**: To utilize functions from `module.r` to perform systematic slicing of the 3D data, calculate PCFs for these slices, and compare them to the 3D PCF. It likely also visualizes these PCFs.
-    *   **Inputs**: `../data/<dataset_name>/cell_coordinates_selected.csv` (or the full `cell_coordinates.csv` if analyzing all cells of a certain type).
-    *   **Processing**:
-        *   Calculates the PCF for the full 3D distribution of selected cells.
-        *   Iteratively generates 2D slices from the 3D data (e.g., by rotating the 3D cloud and taking a thin slab along an axis).
-        *   For each slice, calculates the 2D PCF.
-        *   Compares the 2D PCFs to the 3D PCF.
-    *   **Outputs**: PCF data files, plots comparing 2D and 3D PCFs, and potentially statistical summaries of these comparisons.
+            *   `angle_analysis()`: Selects and visualizes a slice based on specific rotation angles.
+    *   **`code/visual.r` (R - *details inferred, not fully reviewed*)**: Contains functions for visualizing spatial statistics results.
+        *   **Key Functions (used by `space.r`/`prespace.r`)**:
+            *   `mean_pcf()`: Plots the true 3D PCF along with the mean and individual PCFs from 2D slices.
+            *   `cumul_pcf()`: Plots the 3D PCF against a cumulative distribution of 2D PCFs.
+    *   **`code/space.r` (R)**:
+        *   **Purpose**: This is the main script for detailed PCF comparison. It calculates the 3D PCF and then PCFs for numerous random 2D slices, comparing them visually.
+        *   **Inputs**:
+            *   Path to the cell coordinates CSV file (e.g., `../data/<dataset_name>/cell_coordinates_selected.csv`).
+            *   `r_max`: Maximum radius for PCF calculation (value can be guided by `prespace.r` output).
+        *   **Processing**:
+            *   Sources functions from `code/module.r` and `code/visual.r`.
+            *   Calculates the true 3D PCF for the input cell data.
+            *   Generates a large number of random 2D slices by rotating the 3D data.
+            *   For each slice, computes the 2D PCF using `pc_for_slice` from `module.r`.
+            *   Uses `mean_pcf` (from `visual.r`) to generate a plot comparing the 3D PCF to the ensemble of 2D PCFs.
+        *   **Outputs**:
+            *   Plots comparing 3D and 2D PCFs (e.g., `../images/<dataset_name>/mean_pcf_<cell_type>.png`).
+            *   PCF data and cell counts for 3D and 2D slices saved to `../data/pcf/<dataset_folder>/<cell_type>/`.
 
 **Supporting and Specialized Scripts:**
 
 *   **`code/align.py` (Python) & `code/module.py` (Python)**:
-    *   **Purpose**: These scripts are designed for aligning a series of 2D tissue slices to reconstruct a 3D volume, if the input data is in that format (e.g., serial sections). `module.py` provides alignment functions (affine and `STalign`-based LDDMM) used by `align.py`.
+    *   **Purpose**: These scripts are designed for aligning a series of 2D tissue slices to reconstruct a 3D volume if the input data is in that format (e.g., serial sections). `module.py` (Python) provides alignment functions (affine and `STalign`-based LDDMM) used by `align.py`.
     *   **Note**: If starting with an intact 3D image volume (as processed by `extract.py`), this step might be used for specific sub-volume registration or might not be strictly part of the main PCF comparison pipeline.
 
 *   **`code/mimic.r` (R)**:
@@ -158,14 +186,21 @@ A typical analysis run for a new dataset would involve the following sequence. *
     *   Modify and run this script if you need to select specific cell populations for the PCF analysis.
     *   Execute: `python code/choose.py` (assuming it's adapted for command-line use or run interactively).
 
-6.  **Run Spatial Analysis (e.g., `code/prespace.r`, `code/space.r` or custom scripts using `code/module.r`)**:
-    *   Modify the relevant R script(s) to point to the (potentially filtered by `choose.py`) `cell_coordinates.csv`.
-    *   Adjust parameters for slicing (thickness, number of slices, rotation angles) and PCF calculation (r_grid).
-    *   Execute in R environment: `Rscript code/slice.r` (or your custom script).
-    *   This will perform the core PCF comparisons.
+6.  **Run `code/prespace.r` (Recommended Prerequisite for `space.r`)**:
+    *   Modify `prespace.r` to point to the correct (potentially filtered) `cell_coordinates.csv`.
+    *   You can optionally provide `n_range` arguments if you want to select slices with a specific number of cells.
+    *   Execute in R environment: `Rscript code/prespace.r path/to/your/coordinates.csv [min_cells] [max_cells]`
+    *   Note the "Optimal max_r" printed to the console. This will be an input for `space.r`.
+    *   This step generates exploratory plots and data regarding slice characteristics.
 
-7.  **Optional: Run `code/mimic.r`, `code/evaluate.r`, `code/heat.r`**:
-    *   If you want to model PCF curves or perform further aggregate statistical analysis and visualization on results from multiple datasets or conditions, adapt and run these scripts.
+7.  **Run `code/space.r` (Main Spatial Analysis)**:
+    *   Modify `space.r` to point to the correct `cell_coordinates.csv`.
+    *   Pass the path to the coordinates file and the `r_max` value (obtained from `prespace.r` or chosen otherwise) as command-line arguments.
+    *   Execute in R environment: `Rscript code/space.r path/to/your/coordinates.csv your_rmax_value`
+    *   This performs the detailed PCF comparisons between 3D and multiple 2D slices and generates the primary output plots and PCF data.
+
+8.  **Optional: Run `code/mimic.r`, `code/evaluate.r`, `code/heat.r`**:
+    *   If you want to model PCF curves or perform further aggregate statistical analysis and visualization on results (e.g., from `../data/naive/` or `../data/pcf/` directories, or custom statistical outputs), adapt and run these scripts.
 
 **Important Considerations:**
 *   **Paths**: Most scripts use relative paths. Ensure you run them from the correct working directory (typically the root of the project or the `code/` directory, depending on how paths are set up within each script). The use of `this.path::here()` in some R scripts helps in setting the working directory to the script's location.
