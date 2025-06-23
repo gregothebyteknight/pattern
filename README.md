@@ -83,14 +83,14 @@ The analysis is performed through a series of interconnected scripts, primarily 
     *   **Processing**: Filters the coordinate data to retain only cells belonging to the chosen cluster(s).
     *   **Outputs**: A filtered version of cell coordinates, possibly `../data/<dataset_name>/cell_coordinates_selected.csv`.
 
-5.  **Spatial Slicing and PCF Analysis (R: `code/module.r`, orchestrated by scripts like `code/slice.r` or other custom analysis scripts)**
+5.  **Spatial Slicing and PCF Analysis (R: `code/module.r`, orchestrated by scripts like `code/space.r` or other custom analysis scripts)**
     *   **`code/module.r`**: This is a library of functions for spatial analysis.
         *   **Key Functions**:
             *   `rotation()`: Creates 3D rotation matrices.
             *   `slice()`: Extracts cells within a 2D slice of defined thickness from a (potentially rotated) 3D point cloud.
             *   `pc_for_slice()`: Takes a 3D cell coordinate matrix, applies rotation, extracts a slice, and computes the 2D PCF for that slice using `spatstat`. Also calculates the Clark and Evans aggregation index.
             *   `ce_idx()`: Computes the Clark and Evans index for 2D or 3D point sets.
-    *   **`code/slice.r` (R - *as described in original README, not provided for detailed review*)**:
+    *   **`code/space.r` (R - *as described in original README, not provided for detailed review*)**:
         *   **Purpose**: To utilize functions from `module.r` to perform systematic slicing of the 3D data, calculate PCFs for these slices, and compare them to the 3D PCF. It likely also visualizes these PCFs.
     *   **Inputs**: `../data/<dataset_name>/cell_coordinates_selected.csv` (or the full `cell_coordinates.csv` if analyzing all cells of a certain type).
     *   **Processing**:
@@ -158,7 +158,7 @@ A typical analysis run for a new dataset would involve the following sequence. *
     *   Modify and run this script if you need to select specific cell populations for the PCF analysis.
     *   Execute: `python code/choose.py` (assuming it's adapted for command-line use or run interactively).
 
-6.  **Run Spatial Analysis (e.g., `code/slice.r` or custom scripts using `code/module.r`)**:
+6.  **Run Spatial Analysis (e.g., `code/prespace.r`, `code/space.r` or custom scripts using `code/module.r`)**:
     *   Modify the relevant R script(s) to point to the (potentially filtered by `choose.py`) `cell_coordinates.csv`.
     *   Adjust parameters for slicing (thickness, number of slices, rotation angles) and PCF calculation (r_grid).
     *   Execute in R environment: `Rscript code/slice.r` (or your custom script).
@@ -186,3 +186,9 @@ The `data/` directory is organized to hold various datasets, each typically in i
 *   `adata.h5ad`: Scanpy object storing processed expression data, PCA, t-SNE, and annotations for a dataset.
 
 The `images/` directory mirrors this structure for output plots.
+
+## Datasets used
+1. Valentina Gandin, Jun Kim, Liang-Zhong Yang, Yumin Lian, Takashi Kawase, Amy Hu, Konrad Rokicki, Greg Fleishman, Paul Tillberg, Alejandro Aguilera Castrejon, Carsen Stringer, Stephan Preibisch, and Zhe J. Liu. (2025). Deep-tissue transcriptomics and subcellular imaging at high spatial resolution. Science, 388(6744), eadq2084.
+2. Kuett, Laura, Catena, Raúl, Özcan, Alaz, Plüss, Alex, Ali, H. R. Sa’d, M. Al, Alon, S. Aparicio, S. Battistoni, G. Balasubramanian, S. Becker, R. Bodenmiller, B. Boyden, E. S. Bressan, D. Bruna, A. Burger, Marcel, Caldas, C. Callari, M. Cannell, I. G. Casbolt, H. Chornay, N. Cui, Y. Dariush, A. Dinh, K. Emenari, A. Eyal-Lubling, Y. Fan, J. Fatemi, A. Fisher, E. González-Solares, E. A. González-Fernández, C. Goodwin, D. Greenwood, W. Grimaldi, F. Hannon, G. J. Harris, S. Jauset, C. Joyce, J. A. Karagiannis, E. D. Kovačević, T. Kuett, L. Kunes, R. Yoldaş, A. Küpcü, Lai, D. Laks, E. Lee, H. Lee, M. Lerda, G. Li, Y. McPherson, A. Millar, N. Mulvey, C. M. Nugent, I. O’Flanagan, C. H. Paez-Ribes, M. Pearsall, I. Qosaj, F. Roth, A. J. Rueda, O. M. Ruiz, T. Sawicka, K. Sepúlveda, L. A. Shah, S. P. Shea, A. Sinha, A. Smith, A. Tavaré, S. Tietscher, S. Vázquez-García, I. Vogl, S. L.Walton, N. A. Wassie, A. T. Watson, S. S. Weselak, J. Wild, S. A. Williams, E. Windhager, J. Xia, C. Zheng, P. Zhuang, X. Schraml, Peter, Moch, Holger, de Souza, Natalie, and Bodenmiller, Bernd. (2021). Three-dimensional imaging mass cytometry for highly multiplexed molecular and cellular mapping of tissues and the tumor microenvironment. Nature Cancer, 3(1), 122–133.
+3. Yapp, Clarence, Nirmal, Ajit J. Zhou, Felix, Wong, Alex Y.H. Tefft, Juliann B. Lu, Yi Daniel, Shang, Zhiguo, Maliga, Zoltan, Montero Llopis, Paula, Murphy, George F. Lian, Christine G. Danuser, Gaudenz, Santagata, Sandro, and Sorger, Peter K. (2023). Highly Multiplexed 3D Profiling of Cell States and Immune Niches in Human Tumours.
+4. Lin, J. R., Wang, S., Coy, S., Chen, Y. A., Yapp, C., Tyler, M., Nariya, M. K., Heiser, C. N., Lau, K. S., Santagata, S., & Sorger, P. K. (2023). Multiplexed 3D atlas of state transitions and immune interaction in colorectal cancer. Cell, 186(2), 363–381.e19.
