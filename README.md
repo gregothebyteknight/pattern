@@ -1,37 +1,193 @@
-# Objective
-Question of validity of using sections data as a representation of real tissue statistical properties. This validity is discussed and it is believed that 2D projections of the tissues do not provide with the accurate spatial distribution patterns
+```markdown
+# Project: Analyzing Spatial Statistics of Cellular Distributions in 3D Tissues and 2D Sections
 
-The **aim** of this pipeline is to compare spatial metrics both on true spatial data and on 2D sections, also to elaborate the method how to overcome the bias derived from two-dimensional sampling
+## Objective
 
-# Theoretical Part
-## Pair-Correlation Function
-### Quick Introductions
-Pair-correlation function $g(r)$ measures the probability of finding a pair of objects separated by a distance r relative to what would be expected for a completely random (Poisson) distribution
-#### Derivation
-Given that space is isotropic let suggest that probability of observing a point around location x is $$p(x)=\lambda(x)dx$$ where $\lambda(x)$ is intensity, or density of the point process (like Poisson process) and $dV$ - small region of volume
+This project investigates the validity of using two-dimensional (2D) tissue sections to accurately represent the three-dimensional (3D) spatial statistical properties of cellular organization within tissues. A common practice in biology is to analyze thin tissue slices, but this can lead to biased interpretations of cell distribution patterns.
 
-Let $p(x,y)$ be a probability of observing 1 point in x and 1 point in y, then $$p(x,y)=\lambda(x)dx\lambda(y)dy\bullet g(x,y)$$ where $g(x,y)=\frac{p(x,y)}{\lambda^2dxdy}$ - **pair-correlation function** (in simple case)
+The **primary aim** of this pipeline is twofold:
+1.  To quantitatively compare spatial metrics (primarily the Pair Correlation Function) derived from true 3D spatial data of cells with those obtained from their 2D projections (slices).
+2.  To explore and potentially elaborate methods to understand and mitigate the biases introduced by 2D sampling.
 
-#### Intuition
-Layers of spheres get more diffuse, so for large distances, the probability of finding two spheres with a given separation is essentially constant > a more dense system has more spheres, this it's more likely to find two of them with a given distance
+## Theoretical Background: The Pair Correlation Function (PCF)
 
-The PC function accounts for these factors by normalizing by the density; this at large values of r it goes to 1, uniform probability
+The Pair Correlation Function, often denoted as $g(r)$, is a fundamental tool in spatial statistics. It quantifies the probability of finding a pair of objects (in this context, cells) separated by a specific distance $r$, relative to what would be expected under a completely random (spatially uniform, e.g., Poisson) distribution.
 
-#### Calculation in 3D Case
-1. Pick a value of `dr`
-2. Loop over all values of r
-    1. Count all particles that are a distance between `r` and `r+dr` away from the particle you're considering
-    2. Divide your total count by N > average local density
-    3. Divide this number by $4\pi r^2dr$ (volume of the spherical shell)
-    4. Divide this by the particle number density $\rho$ - ensures that $g(r)=1$
+**Interpretation:**
+*   $g(r) > 1$: Indicates that cells are more likely to be found at distance $r$ from each other than by chance, suggesting **clustering** or aggregation at that length scale.
+*   $g(r) < 1$: Indicates that cells are less likely to be found at distance $r$, suggesting **dispersion** or regularity (e.g., cells avoiding each other) at that scale.
+*   $g(r) = 1$: Indicates that cells are randomly distributed with respect to each other at distance $r$.
 
-For 2D volume correction will be just $2\pi r dr$
+By calculating $g(r)$ for a full 3D cell dataset and comparing it to $g(r)$ values obtained from multiple 2D slices taken from that same dataset, this project assesses how well 2D representations capture the true underlying 3D spatial architecture.
 
-## Calculations
-**Pipeline**: `reshape` > `express` > `cluster` > `choose` > `slices` > `main` (dependent of `slices`)
-- **`reshape.py`** - takes stacks of images corresponding to the certain cell markers and cell masks ~ clusterization. This script creates cell datasets with coordinates `cell_coordinates.csv` and with intensities of certain cell markers - `cell_intensities.csv`
-- **`express.r`** - creates expression matrices, both raw `expression_annotated.csv` and corrected `expression_annotated_corrected.csv` with compensation matrix `compensationMatrix.csv`
-- **`cluster.py`** - performs clusterization and manual annotation of expression matrix `expression_annotated_corrected.csv`. Makes various plots for analysis
-- **`choose.py`** - selects cell cluster obtain in the previous script > `cell_coordinates_clusters.csv`
-- **`module.r`** - contains function to perform random sections based on the 3d dataset `cell_coordinates`. Compute **Pair-correlation function** for each of the slices
-- **`slice.r`** - visualize both pcf of 3d initial dataset and of its 2d slices
+## Analysis Pipeline and Code Structure
+
+The analysis is performed through a series of interconnected scripts, primarily written in Python and R. The general workflow is as follows:
+
+**Data Directory Structure (Illustrative):**
+*   `data/init/`: Should contain the initial raw image data (e.g., TIFF stacks for markers and masks).
+*   `data/`: Stores processed data files generated by the pipeline (e.g., `cell_coordinates.csv`, `cell_intensities.csv`, `expression_annotated_corrected.csv`). Specific subdirectories (e.g., `data/nat_blood/`) are used for different datasets.
+*   `code/`: Contains all the Python and R scripts for the analysis.
+*   `images/`: Stores output plots and figures. Specific subdirectories (e.g., `images/Nat_blood/`) are used for different datasets.
+*   `temp/`: May be used for intermediate statistical results.
+
+**Core Workflow Scripts:**
+
+1.  **`code/extract.py` (Python)**
+    *   **Purpose**: Extracts initial cell data from raw 3D image files (e.g., multi-channel TIFF stacks and segmentation masks).
+    *   **Inputs**: Image files (e.g., `../data/init/full_mask_final_segmentation_hwatershed_bg500_90%.tif` and marker-specific image stacks).
+    *   **Processing**:
+        *   Reads image masks to identify individual cells and their boundaries.
+        *   Reads corresponding marker intensity images.
+        *   Calculates 3D centroid coordinates (x, y, z) and area for each cell.
+        *   Calculates mean marker intensities for each cell across all channels.
+    *   **Outputs**:
+        *   `../data/<dataset_name>/cell_coordinates.csv`: Contains columns like `area`, `x`, `y`, `z`.
+        *   `../data/<dataset_name>/cell_intensities.csv`: Contains columns representing different markers, with values being mean intensities for each cell.
+
+2.  **`code/correct.r` (R)**
+    *   **Purpose**: Corrects raw cell marker intensities for spectral spillover between detection channels.
+    *   **Inputs**:
+        *   `../data/<dataset_name>/cell_intensities.csv` (from `extract.py`).
+        *   `../data/<dataset_name>/compensationMatrix.csv`: A matrix defining the spillover coefficients between channels.
+        *   `../data/<dataset_name>/model_panel.csv` (or similar): A panel file mapping raw channel names/metal tags to cleaned marker names.
+    *   **Processing**:
+        *   Applies the inverse of the compensation matrix to the intensity data.
+        *   Renames marker columns based on the panel file.
+        *   Optionally filters out specific markers (e.g., DNA intercalators like Hoechst, or unused channels).
+        *   Generates heatmaps (`../images/<dataset_name>/heat_unc.png`, `../images/<dataset_name>/heat_cor.png`) showing marker correlations before and after compensation.
+    *   **Outputs**:
+        *   `../data/<dataset_name>/expression_annotated_corrected.csv`: The compensated and cleaned expression matrix.
+
+3.  **`code/cluster.py` (Python)**
+    *   **Purpose**: Performs unsupervised clustering of cells based on their corrected marker expression profiles and annotates these clusters.
+    *   **Inputs**:
+        *   `../data/<dataset_name>/expression_annotated_corrected.csv` (from `correct.r`).
+        *   `../data/<dataset_name>/cell_coordinates.csv` (for spatial visualization).
+    *   **Processing**:
+        *   Uses the `scanpy` library.
+        *   Scales expression data.
+        *   Performs Principal Component Analysis (PCA).
+        *   Builds a neighborhood graph and applies Leiden clustering.
+        *   Visualizes clusters using t-SNE (`../images/<dataset_name>/tsne_unlabeled.png`, `../images/<dataset_name>/tsne_stacked.png`).
+        *   Identifies marker genes for clusters (`../images/<dataset_name>/ranked_genes_dotplot.png`, `../images/<dataset_name>/ranked_genes_violin.png`).
+        *   Allows for manual annotation of clusters to cell types based on marker expression (requires user to define `marker_to_cell` dictionary in the script).
+        *   Generates 3D spatial plots of cell clusters and annotated cell types (`../images/<dataset_name>/cell_clusters_3d.png`, `../images/<dataset_name>/cell_types_3d.png`).
+    *   **Outputs**:
+        *   `../data/<dataset_name>/adata.h5ad`: A Scanpy AnnData object containing the processed and annotated data.
+        *   Updates `../data/<dataset_name>/cell_coordinates.csv` with new columns for `cluster` and `cell` (annotated cell type).
+        *   Various diagnostic plots.
+
+4.  **`code/choose.py` (Python - *as described in original README, not provided for detailed review*)**
+    *   **Purpose**: To select specific cell clusters (obtained from `cluster.py`) for downstream spatial analysis.
+    *   **Inputs**: Likely `../data/<dataset_name>/cell_coordinates.csv` (with cluster information).
+    *   **Processing**: Filters the coordinate data to retain only cells belonging to the chosen cluster(s).
+    *   **Outputs**: A filtered version of cell coordinates, possibly `../data/<dataset_name>/cell_coordinates_selected.csv`.
+
+5.  **Spatial Slicing and PCF Analysis (R: `code/module.r`, orchestrated by scripts like `code/slice.r` or other custom analysis scripts)**
+    *   **`code/module.r`**: This is a library of functions for spatial analysis.
+        *   **Key Functions**:
+            *   `rotation()`: Creates 3D rotation matrices.
+            *   `slice()`: Extracts cells within a 2D slice of defined thickness from a (potentially rotated) 3D point cloud.
+            *   `pc_for_slice()`: Takes a 3D cell coordinate matrix, applies rotation, extracts a slice, and computes the 2D PCF for that slice using `spatstat`. Also calculates the Clark and Evans aggregation index.
+            *   `ce_idx()`: Computes the Clark and Evans index for 2D or 3D point sets.
+    *   **`code/slice.r` (R - *as described in original README, not provided for detailed review*)**:
+        *   **Purpose**: To utilize functions from `module.r` to perform systematic slicing of the 3D data, calculate PCFs for these slices, and compare them to the 3D PCF. It likely also visualizes these PCFs.
+    *   **Inputs**: `../data/<dataset_name>/cell_coordinates_selected.csv` (or the full `cell_coordinates.csv` if analyzing all cells of a certain type).
+    *   **Processing**:
+        *   Calculates the PCF for the full 3D distribution of selected cells.
+        *   Iteratively generates 2D slices from the 3D data (e.g., by rotating the 3D cloud and taking a thin slab along an axis).
+        *   For each slice, calculates the 2D PCF.
+        *   Compares the 2D PCFs to the 3D PCF.
+    *   **Outputs**: PCF data files, plots comparing 2D and 3D PCFs, and potentially statistical summaries of these comparisons.
+
+**Supporting and Specialized Scripts:**
+
+*   **`code/align.py` (Python) & `code/module.py` (Python)**:
+    *   **Purpose**: These scripts are designed for aligning a series of 2D tissue slices to reconstruct a 3D volume, if the input data is in that format (e.g., serial sections). `module.py` provides alignment functions (affine and `STalign`-based LDDMM) used by `align.py`.
+    *   **Note**: If starting with an intact 3D image volume (as processed by `extract.py`), this step might be used for specific sub-volume registration or might not be strictly part of the main PCF comparison pipeline.
+
+*   **`code/mimic.r` (R)**:
+    *   **Purpose**: Fits mathematical models (e.g., Gamma distribution-based, damped oscillation) to empirical PCF curves. This can help in parameterizing PCF shapes for comparison or interpretation.
+
+*   **`code/evaluate.r` (R) & `code/heat.r` (R)**:
+    *   **Purpose**: These scripts are used for downstream statistical evaluation and visualization, particularly for comparing results (e.g., p-values from tests comparing 2D vs. 3D metrics) across different datasets, cell types, or conditions.
+    *   `evaluate.r`: Generates bar plots of p-values.
+    *   `heat.r`: Generates heatmaps of p-values.
+    *   **Inputs**: Typically tables of p-values or other statistical results (e.g., `../temp/pval_tbl.csv`).
+
+## How to Use
+
+**Prerequisites:**
+*   **Python Environment**:
+    *   Required libraries: `pandas`, `matplotlib`, `pathlib`, `scanpy`, `plotly`, `skimage`, `numpy`, `torch`, `STalign` (for `align.py`).
+    *   It's recommended to use a virtual environment (e.g., conda or venv).
+    *   `scanpy` installation might require specific attention to its dependencies.
+    *   `STalign` might need to be installed from its source if not available via pip/conda.
+    *   `Kaleido` is needed by `plotly` for static image export.
+*   **R Environment**:
+    *   Required libraries: `pheatmap`, `tidyverse`, `spatstat`, `dplyr`, `FNN`, `geometry`, `minpack.lm`, `ggplot2`, `this.path`.
+    *   Ensure R is compiled with Cairo support for better graphics output if using `cairo_pdf`.
+
+**General Running Order (Conceptual):**
+
+A typical analysis run for a new dataset would involve the following sequence. *Note: Script parameters (like input file paths, dataset names, specific marker lists) will need to be adjusted within each script or passed as arguments if the scripts are modified to accept them.*
+
+1.  **Prepare Input Data**:
+    *   Place raw 3D image stacks (markers) and segmentation mask (e.g., TIFF files) into a dataset-specific subdirectory under `data/init/` (e.g., `data/init/my_dataset/`).
+    *   Ensure you have a compensation matrix (`compensationMatrix.csv`) and a panel file (`model_panel.csv` or similar) relevant to your markers, and place them in `data/<dataset_name>/`.
+
+2.  **Run `code/extract.py`**:
+    *   Modify `extract.py` to point to your raw image and mask files.
+    *   Execute: `python code/extract.py`
+    *   This will generate `cell_coordinates.csv` and `cell_intensities.csv` in the appropriate `data/<dataset_name>/` directory.
+
+3.  **Run `code/correct.r`**:
+    *   Modify `correct.r` to point to the correct `cell_intensities.csv`, `compensationMatrix.csv`, and `panel.csv` for your dataset.
+    *   Also, adjust output image paths if necessary.
+    *   Execute in R environment: `Rscript code/correct.r`
+    *   This will generate `expression_annotated_corrected.csv` and correlation heatmaps.
+
+4.  **Run `code/cluster.py`**:
+    *   Modify `cluster.py` to point to the correct `expression_annotated_corrected.csv` and `cell_coordinates.csv`.
+    *   **Crucially, you will need to define the `marker_to_cell` dictionary based on the `ranked_genes_dotplot.png` and `tsne_stacked.png` outputs from an initial run of the clustering part of the script (comment out the annotation part first, run, inspect plots, then fill in the dictionary and uncomment the annotation part).**
+    *   Adjust output paths.
+    *   Execute: `python code/cluster.py`
+    *   This generates the `adata.h5ad` file, updates `cell_coordinates.csv` with cluster/cell type info, and produces various plots.
+
+5.  **Run `code/choose.py` (if needed)**:
+    *   Modify and run this script if you need to select specific cell populations for the PCF analysis.
+    *   Execute: `python code/choose.py` (assuming it's adapted for command-line use or run interactively).
+
+6.  **Run Spatial Analysis (e.g., `code/slice.r` or custom scripts using `code/module.r`)**:
+    *   Modify the relevant R script(s) to point to the (potentially filtered by `choose.py`) `cell_coordinates.csv`.
+    *   Adjust parameters for slicing (thickness, number of slices, rotation angles) and PCF calculation (r_grid).
+    *   Execute in R environment: `Rscript code/slice.r` (or your custom script).
+    *   This will perform the core PCF comparisons.
+
+7.  **Optional: Run `code/mimic.r`, `code/evaluate.r`, `code/heat.r`**:
+    *   If you want to model PCF curves or perform further aggregate statistical analysis and visualization on results from multiple datasets or conditions, adapt and run these scripts.
+
+**Important Considerations:**
+*   **Paths**: Most scripts use relative paths. Ensure you run them from the correct working directory (typically the root of the project or the `code/` directory, depending on how paths are set up within each script). The use of `this.path::here()` in some R scripts helps in setting the working directory to the script's location.
+*   **Dataset Specificity**: Many file paths and some parameters (e.g., `marker_to_cell` in `cluster.py`) are hardcoded or specific to example datasets (like "Nat_blood", "Cell_crc"). You **MUST** adapt these for your own data.
+*   **Computational Resources**: Processing large 3D images, performing alignments, and running clustering on many cells can be computationally intensive and require significant memory and time.
+*   **Interactivity**: Some steps, especially cell type annotation in `cluster.py`, benefit from interactive execution and inspection of intermediate plots.
+
+## Data Description
+
+The `data/` directory is organized to hold various datasets, each typically in its own subdirectory (e.g., `data/nat_blood/`, `data/sci_brain/`). Common files found within these subdirectories include:
+
+*   `cell_coordinates.csv`: Stores the 3D spatial coordinates (x, y, z), cell area, and after processing by `cluster.py`, cluster assignments and annotated cell types.
+*   `cell_intensities.csv`: Raw mean intensities for each marker for every cell.
+*   `expression_annotated_corrected.csv`: Compensated and cleaned marker expression values for each cell.
+*   `compensationMatrix.csv`: Spillover matrix used for intensity correction.
+*   `model_panel.csv` (or similar): Maps instrument channel names/metal tags to biological marker names.
+*   `cell_coordinates_selected.csv`: A subset of `cell_coordinates.csv`, often after selecting specific cell types/clusters via `choose.py`.
+*   `adata.h5ad`: Scanpy object storing processed expression data, PCA, t-SNE, and annotations for a dataset.
+
+The `images/` directory mirrors this structure for output plots.
+
+## License
+Please refer to the LICENSE file in the repository. (Assuming a LICENSE file exists or will be added).
+```
