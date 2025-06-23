@@ -1,4 +1,3 @@
-```markdown
 # Project: Analyzing Spatial Statistics of Cellular Distributions in 3D Tissues and 2D Sections
 
 ## Objective
@@ -223,6 +222,8 @@ The `data/` directory is organized to hold various datasets, each typically in i
 
 The `images/` directory mirrors this structure for output plots.
 
-## License
-Please refer to the LICENSE file in the repository. (Assuming a LICENSE file exists or will be added).
-```
+## Datasets used
+1. Valentina Gandin, Jun Kim, Liang-Zhong Yang, Yumin Lian, Takashi Kawase, Amy Hu, Konrad Rokicki, Greg Fleishman, Paul Tillberg, Alejandro Aguilera Castrejon, Carsen Stringer, Stephan Preibisch, and Zhe J. Liu. (2025). Deep-tissue transcriptomics and subcellular imaging at high spatial resolution. Science, 388(6744), eadq2084.
+2. Kuett, Laura, Catena, Raúl, Özcan, Alaz, Plüss, Alex, Ali, H. R. Sa’d, M. Al, Alon, S. Aparicio, S. Battistoni, G. Balasubramanian, S. Becker, R. Bodenmiller, B. Boyden, E. S. Bressan, D. Bruna, A. Burger, Marcel, Caldas, C. Callari, M. Cannell, I. G. Casbolt, H. Chornay, N. Cui, Y. Dariush, A. Dinh, K. Emenari, A. Eyal-Lubling, Y. Fan, J. Fatemi, A. Fisher, E. González-Solares, E. A. González-Fernández, C. Goodwin, D. Greenwood, W. Grimaldi, F. Hannon, G. J. Harris, S. Jauset, C. Joyce, J. A. Karagiannis, E. D. Kovačević, T. Kuett, L. Kunes, R. Yoldaş, A. Küpcü, Lai, D. Laks, E. Lee, H. Lee, M. Lerda, G. Li, Y. McPherson, A. Millar, N. Mulvey, C. M. Nugent, I. O’Flanagan, C. H. Paez-Ribes, M. Pearsall, I. Qosaj, F. Roth, A. J. Rueda, O. M. Ruiz, T. Sawicka, K. Sepúlveda, L. A. Shah, S. P. Shea, A. Sinha, A. Smith, A. Tavaré, S. Tietscher, S. Vázquez-García, I. Vogl, S. L.Walton, N. A. Wassie, A. T. Watson, S. S. Weselak, J. Wild, S. A. Williams, E. Windhager, J. Xia, C. Zheng, P. Zhuang, X. Schraml, Peter, Moch, Holger, de Souza, Natalie, and Bodenmiller, Bernd. (2021). Three-dimensional imaging mass cytometry for highly multiplexed molecular and cellular mapping of tissues and the tumor microenvironment. Nature Cancer, 3(1), 122–133.
+3. Yapp, Clarence, Nirmal, Ajit J. Zhou, Felix, Wong, Alex Y.H. Tefft, Juliann B. Lu, Yi Daniel, Shang, Zhiguo, Maliga, Zoltan, Montero Llopis, Paula, Murphy, George F. Lian, Christine G. Danuser, Gaudenz, Santagata, Sandro, and Sorger, Peter K. (2023). Highly Multiplexed 3D Profiling of Cell States and Immune Niches in Human Tumours.
+4. Lin, J. R., Wang, S., Coy, S., Chen, Y. A., Yapp, C., Tyler, M., Nariya, M. K., Heiser, C. N., Lau, K. S., Santagata, S., & Sorger, P. K. (2023). Multiplexed 3D atlas of state transitions and immune interaction in colorectal cancer. Cell, 186(2), 363–381.e19.
