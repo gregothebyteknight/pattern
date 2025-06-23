@@ -1,4 +1,3 @@
-```markdown
 # Project: Analyzing Spatial Statistics of Cellular Distributions in 3D Tissues and 2D Sections
 
 ## Objective
@@ -187,7 +186,3 @@ The `data/` directory is organized to hold various datasets, each typically in i
 *   `adata.h5ad`: Scanpy object storing processed expression data, PCA, t-SNE, and annotations for a dataset.
 
 The `images/` directory mirrors this structure for output plots.
-
-## License
-Please refer to the LICENSE file in the repository. (Assuming a LICENSE file exists or will be added).
-```
